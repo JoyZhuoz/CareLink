@@ -17,7 +17,7 @@
   "license": "ISC",
   "homepage": "",
   "engines": {
-    "node": ">=18.x"
+    "node": ">=20.x"
   },
   "dependencies": {
     "core-js": "^3.8.1",
@@ -30,6 +30,9 @@
     "react-router-dom": "^6.0.0",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@elastic/elasticsearch": "^9.3.0",
+    "twilio": "^5.12.1",
     "url-loader": "^4.1.1"
   },
   "devDependencies": {

@@ -20,7 +20,7 @@ validator.checkSetup();
 
 //allow us to use process.ENV
 const path = require("path");
-require("dotenv").config({ path: path.join(__dirname, ".env") });
+require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 
 //import libraries needed for the webserver to work!
 const http = require("http");
@@ -43,6 +43,12 @@ app.use(express.json());
 
 // connect user-defined routes
 app.use("/api", api);
+
+// CareLink routes
+const patientRoutes = require("./routes/patients");
+const adminRoutes = require("./routes/admin");
+app.use("/api/patients", patientRoutes);
+app.use("/api/admin", adminRoutes);
 
 const twilioRoutes = require("./twilio");
 app.use("/", twilioRoutes);
