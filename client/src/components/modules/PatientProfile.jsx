@@ -1,6 +1,6 @@
 import React from "react";
 
-const PatientProfile = ({ patient, onBack }) => {
+const PatientProfile = ({ patient, onBack, onViewSummary }) => {
   const getUrgencyColor = (urgency) => {
     switch (urgency.toLowerCase()) {
       case "urgent":
@@ -136,7 +136,8 @@ const PatientProfile = ({ patient, onBack }) => {
         {/* Buttons */}
         <div className="flex justify-center gap-6">
           <button
-            className="text-white font-bold py-3 px-10 rounded-xl transition-all duration-200"
+            onClick={() => onViewSummary && onViewSummary(patient)}
+            className="text-white font-bold py-3 px-10 rounded-xl transition-all duration-200 hover:opacity-90"
             style={{ backgroundColor: "var(--primary)" }}
           >
             Summary
