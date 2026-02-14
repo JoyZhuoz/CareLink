@@ -1,8 +1,15 @@
 import { Client } from '@elastic/elasticsearch';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// Load .env FIRST before anything else
-dotenv.config();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Load .env from patient-followup/, then server/, then repo root (so it works from any cwd)
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+dotenv.config({ path: path.join(__dirname, '..', '..', 'server', '.env') });
+dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
+dotenv.config(); // fallback: cwd
 
 // Debug output
 console.log('=== Environment Check ===');

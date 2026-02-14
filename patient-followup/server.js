@@ -1,9 +1,14 @@
 import express from 'express';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import patientRoutes from './routes/patients.js';
 import twilioRoutes from './routes/twilio.js';
 import { startScheduler, runFollowUpNow } from './services/schedulerService.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '.env') });
+dotenv.config({ path: path.join(__dirname, '..', 'server', '.env') });
 dotenv.config();
 
 const app = express();

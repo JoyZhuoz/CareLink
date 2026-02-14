@@ -4,11 +4,14 @@
     "type": "module",
     "main": "server.js",
     "scripts": {
-      "start": "node server.js"
+        "start": "node server.js"
     },
     "dependencies": {
-      "@elastic/elasticsearch": "^8.x.x",
-      "dotenv": "^16.x.x",
-      "express": "^4.x.x"
+        "@elastic/elasticsearch": "^8.x.x",
+        "axios": "^1.13.5",
+        "dotenv": "^16.x.x",
+        "express": "^4.x.x",
+        "node-cron": "^4.2.1",
+        "twilio": "^5.12.1"
     }
-  }
+}

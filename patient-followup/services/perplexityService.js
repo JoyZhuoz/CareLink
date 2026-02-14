@@ -3,10 +3,13 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Current Perplexity chat model (see https://docs.perplexity.ai/docs/model-cards)
+const PERPLEXITY_MODEL = process.env.PERPLEXITY_MODEL || 'sonar';
+
 async function getExpectedRecoveryResponse(patient) {
   const { surgery_type, age, gender, risk_factors } = patient;
 
-  const prompt = `For a ${age}-year-old ${gender} patient who underwent ${surgery_type} surgery with risk factors: ${risk_factors.length > 0 ? risk_factors.join(', ') : 'none'}.
+  const prompt = `For a ${age}-year-old ${gender} patient who underwent ${surgery_type} surgery with risk factors: ${(risk_factors && risk_factors.length) ? risk_factors.join(', ') : 'none'}.
 
 Describe expected recovery symptoms 2-7 days post-surgery:
 1. Normal/expected symptoms
@@ -18,7 +21,7 @@ Keep it concise and medically accurate.`;
   const response = await axios.post(
     'https://api.perplexity.ai/chat/completions',
     {
-      model: 'llama-3.1-sonar-small-128k-online',
+      model: PERPLEXITY_MODEL,
       messages: [
         { role: 'system', content: 'You are a medical information assistant.' },
         { role: 'user', content: prompt }
@@ -29,11 +32,21 @@ Keep it concise and medically accurate.`;
       headers: {
         'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY}`,
         'Content-Type': 'application/json'
-      }
+      },
+      validateStatus: () => true
     }
   );
 
-  return response.data.choices[0].message.content;
+  if (response.status !== 200) {
+    const errBody = typeof response.data === 'object' ? JSON.stringify(response.data) : response.data;
+    throw new Error(`Perplexity API ${response.status}: ${errBody}`);
+  }
+
+  const content = response.data?.choices?.[0]?.message?.content;
+  if (!content) {
+    throw new Error('Perplexity API returned no content');
+  }
+  return content;
 }
 
 export { getExpectedRecoveryResponse };

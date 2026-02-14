@@ -22,13 +22,16 @@ async function runFollowUpNow() {
 
   for (const patient of patients) {
     try {
-      // 1. Get medical context from Perplexity
-      const expectedResponse = await perplexityService.getExpectedRecoveryResponse(patient);
+      // 1. Get medical context from Perplexity (optional; continue to call if this fails)
+      let expectedResponse = null;
+      try {
+        expectedResponse = await perplexityService.getExpectedRecoveryResponse(patient);
+        await embeddingService.storeExpectedResponseEmbedding(patient.patient_id, expectedResponse);
+      } catch (perplexityError) {
+        console.warn(`Perplexity/embedding skipped for ${patient.name}:`, perplexityError.message);
+      }
 
-      // 2. Store embedding in Elasticsearch
-      await embeddingService.storeExpectedResponseEmbedding(patient.patient_id, expectedResponse);
-
-      // 3. Initiate Twilio call
+      // 2. Initiate Twilio call (voice agent will use keyword fallback if no expected context)
       await twilioService.initiateFollowUpCall(patient);
 
       results.push({ patient: patient.name, status: 'success' });

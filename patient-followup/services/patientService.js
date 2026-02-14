@@ -65,23 +65,16 @@ async function getPatientsForFollowup() {
       bool: {
         must: [
           { range: { discharge_date: { lte: 'now-2d' } } }
-        ],
-        must_not: [
-          {
-            nested: {
-              path: 'call_history',
-              query: { exists: { field: 'call_history.call_date' } }
-            }
-          }
         ]
       }
-    }
+    },
+    size: 500
   });
 
-  return response.hits.hits.map(hit => ({
-    id: hit._id,
-    ...hit._source
-  }));
+  // Only include patients with no call history (nested query can be flaky; filter in code)
+  return response.hits.hits
+    .map(hit => ({ id: hit._id, ...hit._source }))
+    .filter(p => !p.call_history || p.call_history.length === 0);
 }
 
 async function getPatientById(patientId) {
