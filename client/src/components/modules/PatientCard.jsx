@@ -12,42 +12,7 @@ function formatCountdown(isoDate) {
   return `${mins}m`;
 }
 
-const PatientCard = ({ patient }) => {
-  const [countdown, setCountdown] = useState(
-    patient.nextCallDate ? formatCountdown(patient.nextCallDate) : null
-  );
-  const [calling, setCalling] = useState(false);
-  const [callStatus, setCallStatus] = useState(null); // "success" | "error" | null
-
-  async function handleCallNow() {
-    setCalling(true);
-    setCallStatus(null);
-    try {
-      const res = await fetch(`/api/twilio/call/${patient.id}`, { method: "POST" });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || `HTTP ${res.status}`);
-      }
-      setCallStatus("success");
-      setTimeout(() => setCallStatus(null), 4000);
-    } catch (err) {
-      console.error("Call failed:", err);
-      setCallStatus("error");
-      setTimeout(() => setCallStatus(null), 4000);
-    } finally {
-      setCalling(false);
-    }
-  }
-
-  // Live-update the countdown every 60 seconds
-  useEffect(() => {
-    if (!patient.nextCallDate || patient.hasBeenCalled) return;
-    const interval = setInterval(() => {
-      setCountdown(formatCountdown(patient.nextCallDate));
-    }, 60_000);
-    return () => clearInterval(interval);
-  }, [patient.nextCallDate, patient.hasBeenCalled]);
-
+const PatientCard = ({ patient, onSelect }) => {
   const getUrgencyColor = (urgency) => {
     switch (urgency?.toLowerCase()) {
       case "urgent":
@@ -65,7 +30,10 @@ const PatientCard = ({ patient }) => {
   const isPastDue = isOverdue; // system will auto-call; show "Scheduled" not "Overdue"
 
   return (
-    <div className="bg-secondary rounded-corners p-8 transition-all duration-300">
+    <div
+      className="bg-secondary-50 shadow-md rounded-corners p-8 transition-all duration-300 cursor-pointer hover:-translate-y-1 hover:shadow-lg"
+      onClick={() => onSelect && onSelect(patient)}
+    >
       {/* Patient Avatar */}
       <div className="flex justify-center mb-6">
         <img
@@ -79,9 +47,7 @@ const PatientCard = ({ patient }) => {
       <div className="text-center mb-6">
         <h3 className="text-2xl font-bold text-gray-900">
           {patient.name}
-          {patient.dischargeDate && (
-            <span className="font-medium"> - {patient.dischargeDate}</span>
-          )}
+          {patient.dischargeDate && <span className="font-medium"> - {patient.dischargeDate}</span>}
         </h3>
       </div>
 
@@ -93,7 +59,9 @@ const PatientCard = ({ patient }) => {
         </div>
         <div>
           <h4 className="font-bold text-gray-900 text-xl mb-1">Recent Symptoms</h4>
-          <p className="text-gray-800 text-xl">{patient.symptoms}</p>
+          <p className="text-gray-800 text-xl">
+            {Array.isArray(patient.symptoms) ? patient.symptoms.join(", ") : patient.symptoms}
+          </p>
         </div>
       </div>
 
@@ -118,9 +86,7 @@ const PatientCard = ({ patient }) => {
           /* ── Not yet called → show countdown to scheduled call ── */
           <div
             className={`flex items-center gap-2 font-bold py-3 px-6 rounded-xl text-white ${
-              isPastDue
-                ? "bg-indigo-500"
-                : "bg-blue-500"
+              isPastDue ? "bg-indigo-500" : "bg-blue-500"
             }`}
           >
             {/* Clock icon */}
@@ -137,9 +103,7 @@ const PatientCard = ({ patient }) => {
                 d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z"
               />
             </svg>
-            <span>
-              {isPastDue ? "Scheduled" : `Call in ${countdown}`}
-            </span>
+            <span>{isPastDue ? "Scheduled" : `Call in ${countdown}`}</span>
           </div>
         )}
         <button
@@ -154,8 +118,18 @@ const PatientCard = ({ patient }) => {
           } ${calling ? "opacity-60 cursor-wait" : ""}`}
         >
           {/* Phone icon */}
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+            />
           </svg>
           {calling
             ? "Calling..."

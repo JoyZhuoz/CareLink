@@ -8,6 +8,7 @@
  *   2. Mounts patient-followup API routes (patients, twilio, scheduler)
  *   3. Provides a Socket.IO layer for real-time dashboard updates
  *   4. Starts the daily follow-up scheduler
+ *   5. Exposes /api/chat for the Agent Builder chatbot
  */
 
 import path from "path";
@@ -19,13 +20,16 @@ import { Server as SocketIOServer } from "socket.io";
 
 // ── Load .env ────────────────────────────────────────────────────────────────
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(__dirname, ".env") });
+dotenv.config({ path: path.join(__dirname, "..", ".env") });
 dotenv.config(); // also check root
 
 // ── Patient-followup imports (ESM) ───────────────────────────────────────────
 import patientRoutes from "../patient-followup/routes/patients.js";
 import twilioRoutes from "../patient-followup/routes/twilio.js";
 import { startScheduler, runFollowUpNow } from "../patient-followup/services/schedulerService.js";
+
+// ── Agent Builder chat service ───────────────────────────────────────────────
+import * as callAgent from "./services/callAgent.js";
 
 // ── Express app ──────────────────────────────────────────────────────────────
 const app = express();
@@ -41,6 +45,26 @@ app.use((req, _res, next) => {
 // ── API routes ───────────────────────────────────────────────────────────────
 app.use("/api/patients", patientRoutes);
 app.use("/api/twilio", twilioRoutes);
+
+// ── Chat route (Agent Builder) ───────────────────────────────────────────────
+app.post("/api/chat", async (req, res) => {
+  try {
+    const { message, conversation_id } = req.body;
+    if (!message) {
+      return res.status(400).json({ error: "Provide 'message'" });
+    }
+    if (!callAgent.isConfigured()) {
+      return res.status(503).json({
+        error: "AI service not configured. Set KIBANA and ELASTICSEARCH_API_KEY in .env.",
+      });
+    }
+    const result = await callAgent.converse(message, conversation_id);
+    res.json({ conversation_id: result.conversation_id, response: result.response });
+  } catch (err) {
+    console.error("Chat error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Manual follow-up trigger
 app.post("/api/run-followup", async (_req, res) => {

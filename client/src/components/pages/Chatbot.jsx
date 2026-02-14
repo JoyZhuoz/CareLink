@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import "./Home.css";
 
-const Home = () => {
+const Chatbot = () => {
   const [query, setQuery] = useState("");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -64,7 +65,7 @@ const Home = () => {
               {msg.role === "assistant" && <div className="home-msg-label">CareLink</div>}
               <div className={`home-msg-bubble home-msg-bubble--${msg.role}`}>
                 {msg.role === "assistant" ? (
-                  <Markdown>{msg.content}</Markdown>
+                  <Markdown remarkPlugins={[remarkGfm]}>{msg.content}</Markdown>
                 ) : (
                   msg.content
                 )}
@@ -119,4 +120,4 @@ const Home = () => {
   );
 };
 
-export default Home;
+export default Chatbot;
