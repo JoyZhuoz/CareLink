@@ -1,49 +1,29 @@
-let io;
+/**
+ * Socket.IO manager stub.
+ * The unified server now manages socket.io directly in server.js.
+ * This file exists so any legacy imports don't crash.
+ */
 
-const userToSocketMap = {}; // maps user ID to socket object
-const socketToUserMap = {}; // maps socket ID to user object
+let io = null;
 
-const getAllConnectedUsers = () => Object.values(socketToUserMap);
-const getSocketFromUserID = (userid) => userToSocketMap[userid];
-const getUserFromSocketID = (socketid) => socketToUserMap[socketid];
-const getSocketFromSocketID = (socketid) => io.sockets.sockets.get(socketid);
+function init(server) {
+  // no-op: socket.io is initialized in server.js
+}
 
-const addUser = (user, socket) => {
-  const oldSocket = userToSocketMap[user._id];
-  if (oldSocket && oldSocket.id !== socket.id) {
-    // there was an old tab open for this user, force it to disconnect
-    // FIXME: is this the behavior you want?
-    oldSocket.disconnect();
-    delete socketToUserMap[oldSocket.id];
-  }
+function getIo() {
+  return io;
+}
 
-  userToSocketMap[user._id] = socket;
-  socketToUserMap[socket.id] = user;
-};
+function getSocketFromSocketID(socketId) {
+  return io?.sockets?.sockets?.get(socketId) || null;
+}
 
-const removeUser = (user, socket) => {
-  if (user) delete userToSocketMap[user._id];
-  delete socketToUserMap[socket.id];
-};
+function addUser(user, socket) {
+  // no-op stub
+}
 
-module.exports = {
-  init: (http) => {
-    io = require("socket.io")(http);
+function removeUser(user, socket) {
+  // no-op stub
+}
 
-    io.on("connection", (socket) => {
-      console.log(`socket has connected ${socket.id}`);
-      socket.on("disconnect", (reason) => {
-        const user = getUserFromSocketID(socket.id);
-        removeUser(user, socket);
-      });
-    });
-  },
-
-  addUser: addUser,
-  removeUser: removeUser,
-
-  getSocketFromUserID: getSocketFromUserID,
-  getUserFromSocketID: getUserFromSocketID,
-  getSocketFromSocketID: getSocketFromSocketID,
-  getIo: () => io,
-};
+export { init, getIo, getSocketFromSocketID, addUser, removeUser };

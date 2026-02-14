@@ -7,6 +7,7 @@
     "gender": "Male",
     "surgery_type": "ACL reconstruction",
     "surgery_date": "2026-02-11",
+    "discharge_date": "2026-02-12",
     "risk_factors": ["diabetes", "obesity"],
     "call_history": []
   },
@@ -18,6 +19,7 @@
     "gender": "Female",
     "surgery_type": "Total knee replacement",
     "surgery_date": "2026-02-09",
+    "discharge_date": "2026-02-12",
     "risk_factors": ["hypertension"],
     "call_history": []
   },
@@ -29,6 +31,7 @@
     "gender": "Male",
     "surgery_type": "Appendectomy",
     "surgery_date": "2026-02-12",
+    "discharge_date": "2026-02-13",
     "risk_factors": [],
     "call_history": []
   },
@@ -40,6 +43,7 @@
     "gender": "Female",
     "surgery_type": "Hysterectomy",
     "surgery_date": "2026-02-08",
+    "discharge_date": "2026-02-10",
     "risk_factors": ["anemia", "smoking"],
     "call_history": []
   },
@@ -51,6 +55,7 @@
     "gender": "Male",
     "surgery_type": "Coronary artery bypass",
     "surgery_date": "2026-02-05",
+    "discharge_date": "2026-02-10",
     "risk_factors": ["heart disease", "diabetes", "hypertension"],
     "call_history": []
   },
@@ -62,6 +67,7 @@
     "gender": "Female",
     "surgery_type": "Gallbladder removal",
     "surgery_date": "2026-02-13",
+    "discharge_date": "2026-02-14",
     "risk_factors": ["obesity"],
     "call_history": []
   },
@@ -73,6 +79,7 @@
     "gender": "Male",
     "surgery_type": "Hip replacement",
     "surgery_date": "2026-02-07",
+    "discharge_date": "2026-02-10",
     "risk_factors": ["osteoporosis", "hypertension"],
     "call_history": []
   },
@@ -84,6 +91,7 @@
     "gender": "Female",
     "surgery_type": "C-section",
     "surgery_date": "2026-02-10",
+    "discharge_date": "2026-02-13",
     "risk_factors": [],
     "call_history": []
   },
@@ -95,6 +103,7 @@
     "gender": "Male",
     "surgery_type": "Spinal fusion",
     "surgery_date": "2026-02-06",
+    "discharge_date": "2026-02-11",
     "risk_factors": ["smoking", "obesity"],
     "call_history": []
   },
@@ -106,6 +115,7 @@
     "gender": "Female",
     "surgery_type": "Colon resection",
     "surgery_date": "2026-02-04",
+    "discharge_date": "2026-02-08",
     "risk_factors": ["diabetes", "hypertension", "age_over_70"],
     "call_history": []
   }

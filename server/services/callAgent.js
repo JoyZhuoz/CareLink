@@ -15,7 +15,7 @@ const AGENT_ID = "carelink_clinical";
  * Send a message to the Agent Builder converse endpoint.
  * Returns { conversation_id, response }.
  */
-async function converse(message, conversationId) {
+export async function converse(message, conversationId) {
   const body = {
     input: message,
     agent_id: AGENT_ID,
@@ -47,11 +47,6 @@ async function converse(message, conversationId) {
   };
 }
 
-function isConfigured() {
+export function isConfigured() {
   return !!(KIBANA_URL && API_KEY);
 }
-
-module.exports = {
-  isConfigured,
-  converse,
-};

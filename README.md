@@ -1,259 +1,123 @@
-# CareLink - Healthcare Dashboard
+# How to code a webapp with this skeleton
 
-A modern healthcare web application for clinicians to easily monitor patient recovery post-operation.
+## Initial setup
 
-![Status](https://img.shields.io/badge/status-ready-brightgreen)
-![React](https://img.shields.io/badge/react-18.2.0-blue)
-![Tailwind](https://img.shields.io/badge/tailwind-3.4.19-38bdf8)
+All teammates will need (explained in weblab.is/hw0)
 
-## ✨ Features
+- A bash console (on Mac or Linux, this is Terminal. On Windows, we recommend Git Bash)
+- NodeJS version 18. If it is installed correctly, typing "node --version" should give v18.13.0 and "npm --version" should give 8.19.3, or higher.
+- Visual Studio Code (or another code editor)
+- the Prettier VSCode extension
 
-- **Patient Dashboard**: View all patients with their post-operative status
-- etc
+This project is currently configured for a no-auth hackathon demo and does not require MongoDB.
 
-## 🚀 Quick Start
+## Downloading these files
 
-### Prerequisites
-- Node.js 18.x or higher
-- npm 10.x or higher
+First, you probably have a team repository somewhere (the link looks like: https://github.com/weblab-class/teammate1-teammate2-teammate3). You each should clone this (empty) repository by navigating to where you want your folder to be (**NOT in catbook**) and typing: git clone https://github.com/weblab-class/teammate1-teammate2-teammate3.git <-- with the correct link.
 
-### Installation
+Then, one of your team members will need to do the following:
 
-**⚠️ Important for Windows Users:**
-If your project is in OneDrive, move it to a non-synced location first (see [TROUBLESHOOTING.md](TROUBLESHOOTING.md)):
-```bash
-# Recommended locations:
-C:\Users\[username]\Documents\carelink
-# OR
-C:\dev\carelink
-```
+First on GitHub, download the skeleton (this repository) as a zip file, by clicking Code -> Download as ZIP. (Do not clone it, since this will download extra files, like .git, which will lead to GitHub being confused).
 
-Then install dependencies:
-```bash
-npm install
-```
+Then, drag over all of the files in this skeleton into your team's folder. **Make sure to also drag over the hidden files!** To see these hidden files, navigate to the skeleton in Finder/File Explorer and press command+shift+period (mac) or View > Show > Hidden items (windows).
 
-### Run Development Server
-```bash
-npm run dev
-```
+The files/folders you must drag over are:
 
-Open your browser to `http://localhost:5173`
+- .gitignore (hidden)
+- .npmrc (hidden)
+- .prettierrc (hidden)
+- client (folder)
+- package-lock.json
+- package.json
+- README.md
+- server (folder)
+- vite.config.js
 
-## 📁 Project Structure
+Additionally, you must create a .env file in the root directory. See .env.example for an example of what this file should look like.
 
-```
-carelink/
-├── client/src/
-│   ├── components/
-│   │   ├── App.jsx              # Root component with auth context
-│   │   ├── PatientCard.jsx      # Individual patient card
-│   │   ├── TabSwitcher.jsx      # Tab navigation
-│   │   └── pages/
-│   │       └── Dashboard.jsx    # Main dashboard page
-│   ├── index.jsx                # Application entry point
-│   └── utilities.css            # Global styles + Tailwind
-├── tailwind.config.js           # Tailwind CSS configuration
-├── postcss.config.js            # PostCSS configuration
-└── package.json                 # Dependencies
-```
+Then, in terminal, navigate to your teams folder and push all of the files to your team's GitHub repository as usual:
 
-## 🎨 Technology Stack
+- git add -A
+- git commit -m "Skeleton code"
+- git push
 
-- **React 18** - UI framework
-- **Tailwind CSS 3** - Utility-first CSS framework
-- **Vite 4** - Build tool and dev server
-- **React Router 6** - Client-side routing
+Now the rest of your teammates can pull all these files with a 'git pull'!
 
-## 📱 Screenshots & Design
+Post on Piazza if you run into any issues
 
-The UI features:
-- Coral/orange gradient background
-- Soft amber/cream colored patient cards
-- Color-coded urgency buttons (Red/Yellow/Green)
-- Smooth hover animations
-- Fully responsive grid layout
+## What you need to configure
 
-### Responsive Breakpoints
-- **Mobile (< 640px)**: 1 column layout
-- **Tablet (640-1024px)**: 2 column layout
-- **Desktop (> 1024px)**: 3 column layout
+- Set Twilio environment variables in `.env` based on `.env.example`.
+- Set `PUBLIC_BASE_URL` so Twilio callbacks can reach your server.
+- (Optional) Add a favicon to your website at the path client/dist/favicon.ico
+- (Optional) Update website title in client/dist/index.html
+- (Optional) Update this README file ;)
+- (Optional) Update the package.json file with your app name :) (line 2)
 
-## 🔧 Customization
+## How to run this skeleton
 
-### Adding New Patients
+First, 'npm install'
+Then open two separate terminals, and 'npm run dev' in the first, and 'npm start' in the second.
+Then open http://localhost:5173
 
-Edit the `patientsData` array in `client/src/components/pages/Dashboard.jsx`:
+## Testing Twilio voice (tunnel + end-to-end)
 
-```javascript
-const patientsData = [
-  {
-    id: 1,
-    name: "Patient Name",
-    avatar: "https://example.com/avatar.jpg",
-    operation: "Surgery Type",
-    symptoms: "Symptom list",
-    dischargeDate: "Date",
-    urgency: "Urgent|Monitor|Minimal",
-    aiSummary: "Optional AI summary" // Only for urgent cases
-  },
-  // ... more patients
-];
-```
+Twilio needs a public URL to send voice webhooks to your app. Use a tunnel when testing locally.
 
-### Modifying Colors
+1. **Start the server** (if not already): `npm start` (listens on port 3000).
 
-Update the Tailwind configuration in `tailwind.config.js`:
+2. **Start a tunnel** in another terminal:
+   ```bash
+   npm run tunnel
+   ```
+   Copy the HTTPS URL it prints (e.g. `https://abc123.loca.lt`). If you use **ngrok** instead: `ngrok http 3000` and copy the HTTPS URL.
 
-```javascript
-theme: {
-  extend: {
-    colors: {
-      'coral': { 500: '#FA8072' },
-      'peach': '#FFEAA7',
-      // Add your colors
-    }
-  }
-}
-```
+3. **Point the server at the tunnel**: In `server/.env` set:
+   ```bash
+   PUBLIC_BASE_URL=https://your-tunnel-url-here
+   ```
+   Restart the server (`npm start`) so it uses this URL when creating Twilio calls.
 
-### Changing Layout
+4. **Trigger a test call** (use your own phone in E.164, e.g. +14155551234):
+   ```bash
+   npm run test:twilio -- +14155551234
+   ```
+   Or set the number in env and run:
+   ```bash
+   TWILIO_TEST_TO=+14155551234 npm run test:twilio
+   ```
+   Your phone should ring; answer and follow the voice prompts (identity confirmation, then symptom questions).
 
-Modify grid classes in `Dashboard.jsx`:
-```javascript
-// Default: 1 → 2 → 3 columns
-className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
+5. **Inspect call state** (optional): After a call, you can fetch the in-memory record:
+   ```bash
+   curl "http://localhost:3000/api/calls/CALL_SID"
+   ```
+   Replace `CALL_SID` with the value printed by the test script.
 
-// Example: 1 → 2 → 4 columns
-className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6"
-```
+<!-- ## How to go from this skeleton to your actual app
 
-## 📚 Documentation
+Check out this [How to Get Started Guide](http://weblab.is/get-started) -->
 
-Comprehensive documentation is available:
+## Socket stuff
 
-- **[PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)** - Complete project overview
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Component structure & visual diagrams
-- **[IMPLEMENTATION.md](IMPLEMENTATION.md)** - Detailed implementation notes
-- **[TESTING.md](TESTING.md)** - Testing checklist and guidelines
-- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Windows EPERM error solutions
-- **[COMPONENT_GUIDE.js](COMPONENT_GUIDE.js)** - Component API reference
-- **[SETUP.md](SETUP.md)** - Quick setup guide
+Note: we'll be getting to this in lecture in week 2, so don't worry if you don't know it yet
 
-## 🐛 Troubleshooting
+- If you're not using realtime updating or don't need server->client communication, you can remove socket entirely! (server-socket.js, client-socket.js, and anything that imports them)
+- If you are using sockets, consider what you want to do with the FIXME in server-socket.js
 
-### Common Issues
+## Edit at your own risk
 
-**EPERM Error on Windows**
-- Move project out of OneDrive
-- See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for detailed solutions
-
-**Tailwind styles not working**
-- Ensure Tailwind is installed: `npm install -D tailwindcss postcss autoprefixer`
-- Restart dev server
-
-**Port 5173 already in use**
-- Change port in `vite.config.js`
-- Or kill process using port 5173
-
-## 🎯 Current Status
-
-### ✅ Implemented (UI Only)
-- Patient cards display with all information
-- Tab switching between Patients/Analytics
-- Responsive grid layout
-- Color-coded urgency levels
-- Hover animations and effects
-- Clean, modern design
-
-### ⏳ Not Yet Implemented
-- Button functionality (Contact, Urgency actions)
-- Analytics tab content
-- Backend API integration
-- Real-time patient data
-- User authentication
-- Search/filter functionality
-
-*Note: Current implementation is UI-only as requested. Buttons are non-functional placeholders.*
-
-## 🛠️ Development
-
-### Available Scripts
-
-```bash
-npm run dev      # Start development server (port 5173)
-npm run build    # Build for production
-npm run preview  # Preview production build
-npm start        # Start backend server (nodemon)
-```
-
-### Code Quality
-
-- ✅ No linter errors
-- ✅ No syntax errors
-- ✅ Clean, readable code
-- ✅ Proper React patterns (hooks, functional components)
-- ✅ Reusable components
-- ✅ Well-commented
-
-## 🔮 Future Enhancements
-
-Potential features to add:
-- Connect to backend API for real patient data
-- Implement Contact button functionality
-- Build out Analytics dashboard
-- Add patient detail views
-- Implement search and filtering
-- Add patient data management (CRUD)
-- Real-time updates with WebSockets
-- Export/print patient reports
-- Notification system for urgent cases
-
-## 👥 Component Overview
+the following files students do not need to edit. feel free to read them if you would like.
 
 ```
-App
-└── Dashboard
-    ├── TabSwitcher (navigation)
-    └── PatientCard (multiple instances)
+client/src/utilities.js
+client/src/client-socket.js
+server/validator.js
+server/server-socket.js
+.npmrc
+.prettierrc
+package-lock.json
+vite.config.js
 ```
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed component diagrams.
-
-## 🎨 Design System
-
-### Colors
-- **Background**: Orange/Coral gradient
-- **Cards**: Amber/Cream
-- **Urgent**: Red (#EF4444)
-- **Monitor**: Yellow (#FBBF24)
-- **Minimal**: Green (#10B981)
-- **Contact**: Dark Gray (#1F2937)
-
-### Typography
-- Font Family: Roboto (can be customized in `utilities.css`)
-- Headings: Bold, larger sizes
-- Body: Regular weight, good contrast
-
-## 📝 Notes
-
-- Sample patient avatars use Unsplash (requires internet)
-- Replace with actual patient photos when available
-- All button actions are currently UI-only
-- Analytics tab shows placeholder message
-
-## 📄 License
-
-ISC
-
-## 🙏 Acknowledgments
-
-- Built with React and Tailwind CSS
-- Based on weblab-skeleton template
-- Designed for MIT 25-26 healthcare project
-
----
-
-**Built with ❤️ for better patient care**
-
-*Last Updated: February 14, 2026*
+## Good luck on your project :)

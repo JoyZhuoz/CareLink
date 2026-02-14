@@ -1,4 +1,8 @@
 client/dist/bundle.js
 node_modules/
 .DS_Store
+
+# Environment files (contain secrets)
 .env
+server/.env
+patient-followup/.env

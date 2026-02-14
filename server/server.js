@@ -1,93 +1,121 @@
-/*
-|--------------------------------------------------------------------------
-| server.js -- The core of your server
-|--------------------------------------------------------------------------
-|
-| This file defines how your server starts up. Think of it as the main() of your server.
-| At a high level, this file does the following things:
-| - Connect to the database
-| - Sets up server middleware (i.e. addons that enable things like json parsing, user login)
-| - Hooks up all the backend routes specified in api.js
-| - Fowards frontend routes that should be handled by the React router
-| - Sets up error handling in case something goes wrong when handling a request
-| - Actually starts the webserver
-*/
+/**
+ * ============================================================================
+ * CareLink – Unified Server
+ * ============================================================================
+ *
+ * Single Express server that:
+ *   1. Serves the React frontend (client/dist)
+ *   2. Mounts patient-followup API routes (patients, twilio, scheduler)
+ *   3. Provides a Socket.IO layer for real-time dashboard updates
+ *   4. Starts the daily follow-up scheduler
+ *   5. Exposes /api/chat for the Agent Builder chatbot
+ */
 
-// validator runs some basic checks to make sure you've set everything up correctly
-// this is a tool provided by staff, so you don't need to worry about it
-const validator = require("./validator");
-validator.checkSetup();
+import path from "path";
+import { fileURLToPath } from "url";
+import dotenv from "dotenv";
+import http from "http";
+import express from "express";
+import { Server as SocketIOServer } from "socket.io";
 
-//allow us to use process.ENV
-const path = require("path");
-require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
+// ── Load .env ────────────────────────────────────────────────────────────────
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, "..", ".env") });
+dotenv.config(); // also check root
 
-//import libraries needed for the webserver to work!
-const http = require("http");
-const express = require("express"); // backend framework for our node server.
+// ── Patient-followup imports (ESM) ───────────────────────────────────────────
+import patientRoutes from "../patient-followup/routes/patients.js";
+import twilioRoutes from "../patient-followup/routes/twilio.js";
+import { startScheduler, runFollowUpNow } from "../patient-followup/services/schedulerService.js";
 
-const api = require("./api");
+// ── Agent Builder chat service ───────────────────────────────────────────────
+import * as callAgent from "./services/callAgent.js";
 
-// socket stuff
-const socketManager = require("./server-socket");
-
-// create a new express server
+// ── Express app ──────────────────────────────────────────────────────────────
 const app = express();
-app.use(validator.checkRoutes);
-
-// IMPORTANT: Twilio sends application/x-www-form-urlencoded by default
-app.use(express.urlencoded({ extended: false }));
-
-// allow us to process POST requests
+app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// connect user-defined routes
-app.use("/api", api);
+// Request logger (helpful for debugging webhooks)
+app.use((req, _res, next) => {
+  console.log(`[REQ] ${req.method} ${req.url}`);
+  next();
+});
 
-// CareLink routes
-const patientRoutes = require("./routes/patients");
-const adminRoutes = require("./routes/admin");
+// ── API routes ───────────────────────────────────────────────────────────────
 app.use("/api/patients", patientRoutes);
-app.use("/api/admin", adminRoutes);
+app.use("/api/twilio", twilioRoutes);
 
-const twilioRoutes = require("./twilio");
-app.use("/", twilioRoutes);
+// ── Chat route (Agent Builder) ───────────────────────────────────────────────
+app.post("/api/chat", async (req, res) => {
+  try {
+    const { message, conversation_id } = req.body;
+    if (!message) {
+      return res.status(400).json({ error: "Provide 'message'" });
+    }
+    if (!callAgent.isConfigured()) {
+      return res.status(503).json({
+        error: "AI service not configured. Set KIBANA and ELASTICSEARCH_API_KEY in .env.",
+      });
+    }
+    const result = await callAgent.converse(message, conversation_id);
+    res.json({ conversation_id: result.conversation_id, response: result.response });
+  } catch (err) {
+    console.error("Chat error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
-// load the compiled react files, which will serve /index.html and /bundle.js
+// Manual follow-up trigger
+app.post("/api/run-followup", async (_req, res) => {
+  try {
+    const results = await runFollowUpNow();
+    res.json({ message: "Follow-up completed", results });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Health check
+app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
+app.get("/health", (_req, res) => res.json({ status: "ok" }));
+
+// ── Static React frontend ────────────────────────────────────────────────────
 const reactPath = path.resolve(__dirname, "..", "client", "dist");
 app.use(express.static(reactPath));
 
-// for all other routes, render index.html and let react router handle it
+// SPA fallback – let React Router handle all other GET routes
 app.get("*", (req, res) => {
   res.sendFile(path.join(reactPath, "index.html"), (err) => {
     if (err) {
-      console.log("Error sending client/dist/index.html:", err.status || 500);
-      res.status(err.status || 500).send("Error sending client/dist/index.html - have you run `npm run build`?");
+      res.status(err.status || 500).send("Frontend not built yet – run `npm run build` first.");
     }
   });
 });
 
-// any server errors cause this function to run
-app.use((err, req, res, next) => {
-  const status = err.status || 500;
-  if (status === 500) {
-    // 500 means Internal Server Error
-    console.log("The server errored when processing a request!");
-    console.log(err);
-  }
-
-  res.status(status);
-  res.send({
-    status: status,
-    message: err.message,
-  });
+// ── Error handler ────────────────────────────────────────────────────────────
+app.use((err, _req, res, _next) => {
+  console.error("Server error:", err);
+  res.status(err.status || 500).json({ error: err.message });
 });
 
-// hardcode port to 3000 for now
-const port = 3000;
-const server = http.Server(app);
-socketManager.init(server);
+// ── Start server + Socket.IO ─────────────────────────────────────────────────
+const PORT = process.env.PORT || 3000;
+const server = http.createServer(app);
 
-server.listen(port, () => {
-  console.log(`Server running on port: ${port}`);
+const io = new SocketIOServer(server, {
+  cors: { origin: "*" },
+});
+
+io.on("connection", (socket) => {
+  console.log("Dashboard connected:", socket.id);
+  socket.on("disconnect", () => console.log("Dashboard disconnected:", socket.id));
+});
+
+// Export io so services can emit events (e.g. new triage result)
+export { io };
+
+server.listen(PORT, () => {
+  console.log(`CareLink server running on port ${PORT}`);
+  startScheduler();
 });
