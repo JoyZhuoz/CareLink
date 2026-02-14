@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./components/App";
 import SidebarLayout from "./components/layouts/SidebarLayout";
 import Dashboard from "./components/pages/Dashboard";
+import Analytics from "./components/pages/Analytics";
 import Chatbot from "./components/pages/Chatbot";
 import NotFound from "./components/pages/NotFound";
 
@@ -16,10 +17,12 @@ import {
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route element={<App />} errorElement={<NotFound />}>
-      <Route path="/" element={<SidebarLayout />}>
-        <Route index element={<Dashboard />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="chatbot" element={<Chatbot />} />
+      {/* All main pages share the sidebar layout */}
+      <Route element={<SidebarLayout />}>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/analytics" element={<Analytics />} />
+        <Route path="/chatbot" element={<Chatbot />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Route>

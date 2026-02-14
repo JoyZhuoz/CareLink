@@ -27,6 +27,7 @@ dotenv.config();
 // ── Patient-followup imports (ESM) ───────────────────────────────────────────
 import patientRoutes from "../patient-followup/routes/patients.js";
 import twilioRoutes from "../patient-followup/routes/twilio.js";
+import analyticsRoutes from "../patient-followup/routes/analytics.js";
 import { startScheduler, runFollowUpNow } from "../patient-followup/services/schedulerService.js";
 
 // ── Agent Builder chat service ───────────────────────────────────────────────
@@ -46,6 +47,7 @@ app.use((req, _res, next) => {
 // ── API routes ───────────────────────────────────────────────────────────────
 app.use("/api/patients", patientRoutes);
 app.use("/api/twilio", twilioRoutes);
+app.use("/api/analytics", analyticsRoutes);
 
 // ── Chat route (Agent Builder) ───────────────────────────────────────────────
 app.post("/api/chat", async (req, res) => {
