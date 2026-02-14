@@ -18,6 +18,7 @@ const CallTranscript = ({ call, defaultExpanded = true }) => {
   const reasoningSummary = call.reasoning_summary || (fields.reasoning_summary && fields.reasoning_summary[0]);
   const recommendedAction = call.recommended_action || (fields.recommended_action && fields.recommended_action[0]);
   const triageLevel = call.triage_level || (fields.triage_level && fields.triage_level[0]);
+  const conditionChange = call.condition_change || (fields.condition_change && fields.condition_change[0]);
 
   const callDate = callDateRaw
     ? new Date(callDateRaw).toLocaleDateString("en-US", {
@@ -46,6 +47,19 @@ const CallTranscript = ({ call, defaultExpanded = true }) => {
     yellow: "Monitor",
     red: "Urgent",
   }[triageLevel] || "Unknown";
+
+  const conditionChangeLabel = {
+    first_call: "First call",
+    escalation: "Escalation",
+    recovery: "Recovery",
+    stable: "Stable",
+  }[conditionChange] || null;
+  const conditionChangeColor = {
+    first_call: "bg-gray-100 text-gray-700",
+    escalation: "bg-red-100 text-red-700",
+    recovery: "bg-green-100 text-green-700",
+    stable: "bg-blue-100 text-blue-700",
+  }[conditionChange] || "bg-gray-100 text-gray-700";
 
   // Build message pairs from parallel arrays
   const messages = speakers.map((speaker, i) => ({
@@ -79,6 +93,11 @@ const CallTranscript = ({ call, defaultExpanded = true }) => {
           <span className={`text-xs font-semibold px-3 py-1 rounded-full ${triageColor}`}>
             {triageLabel}
           </span>
+          {conditionChangeLabel && (
+            <span className={`text-xs font-semibold px-3 py-1 rounded-full ${conditionChangeColor}`}>
+              {conditionChangeLabel}
+            </span>
+          )}
         </div>
         <svg
           className={`w-5 h-5 text-gray-500 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}

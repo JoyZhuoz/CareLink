@@ -29,17 +29,44 @@ function getSummaryFromCall(latestCall) {
   return latestCall.reasoning_summary || latestCall.recommended_action || "No summary available.";
 }
 
-function patientToUI(raw) {
-  const latestCall = raw.call_history && raw.call_history[0];
-  const triage = getTriageFromCall(latestCall);
-  const aiSummary = getSummaryFromCall(latestCall);
-  const hasTranscript =
-    latestCall &&
-    ((latestCall.transcript && latestCall.transcript.length > 0) ||
-      (latestCall.fields && (latestCall.fields["transcript.text"] || []).length > 0));
-  const symptoms = hasTranscript ? ["See call history"] : ["None reported"];
+/** Symptoms from a single call: Claude-extracted symptoms_mentioned (from triage JSON), not keyword extraction. */
+function getSymptomsFromCall(call) {
+  if (!call) return null;
+  const list = call.symptoms_mentioned || (call.fields && call.fields.symptoms_mentioned);
+  if (Array.isArray(list) && list.length > 0) {
+    return list.map((s) => (typeof s === "string" ? s : String(s)).trim()).filter(Boolean);
+  }
+  return null;
+}
 
+/** Return the single most recent call (by call_date) so Recent Symptoms and urgency use only latest call. */
+function getMostRecentCall(raw) {
+  const history = raw.call_history;
+  if (!Array.isArray(history) || history.length === 0) return null;
+  const getDate = (c) => c.call_date || (c.fields && c.fields.call_date && c.fields.call_date[0]) || "";
+  const sorted = [...history].sort((a, b) => new Date(getDate(b)) - new Date(getDate(a)));
+  return sorted[0];
+}
+
+function patientToUI(raw) {
+  const mostRecentCall = getMostRecentCall(raw);
+  const triage = getTriageFromCall(mostRecentCall);
+  const aiSummary = getSummaryFromCall(mostRecentCall);
+  const hasTranscript =
+    mostRecentCall &&
+    ((mostRecentCall.transcript && mostRecentCall.transcript.length > 0) ||
+      (mostRecentCall.fields && (mostRecentCall.fields["transcript.text"] || []).length > 0));
+  const extractedSymptoms = getSymptomsFromCall(mostRecentCall);
   const hasBeenCalled = !!(raw.call_history && raw.call_history.length > 0);
+  const symptoms =
+    !hasBeenCalled
+      ? ["Not called yet"]
+      : extractedSymptoms && extractedSymptoms.length > 0
+        ? extractedSymptoms
+        : hasTranscript
+          ? ["See call history"]
+          : ["None reported"];
+
   // Next scheduled call: 2 days after discharge if not yet called (matches scheduler logic)
   let nextCallDate = null;
   if (!hasBeenCalled && raw.discharge_date) {
@@ -51,6 +78,8 @@ function patientToUI(raw) {
   const name = raw.name || "Unknown";
   const avatar =
     `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=128&background=random`;
+
+  const latestConditionChange = mostRecentCall?.condition_change || null;
 
   return {
     id: raw.patient_id,
@@ -69,6 +98,7 @@ function patientToUI(raw) {
     call_history: raw.call_history,
     hasBeenCalled,
     nextCallDate,
+    conditionChange: latestConditionChange,
   };
 }
 

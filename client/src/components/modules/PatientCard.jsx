@@ -108,6 +108,27 @@ const PatientCard = ({ patient, onSelect }) => {
         </div>
       )}
 
+      {/* Condition trend (escalation/recovery/stable) after multiple calls */}
+      {patient.hasBeenCalled && patient.conditionChange && patient.conditionChange !== "first_call" && (
+        <div className="flex justify-center mb-4">
+          <span
+            className={`text-xs font-semibold px-3 py-1 rounded-full ${
+              patient.conditionChange === "escalation"
+                ? "bg-red-100 text-red-700"
+                : patient.conditionChange === "recovery"
+                  ? "bg-green-100 text-green-700"
+                  : "bg-blue-100 text-blue-700"
+            }`}
+          >
+            {patient.conditionChange === "escalation"
+              ? "↑ Escalation"
+              : patient.conditionChange === "recovery"
+                ? "↓ Recovery"
+                : "→ Stable"}
+          </span>
+        </div>
+      )}
+
       {/* Action area: urgency badge OR countdown */}
       <div className="flex gap-4 justify-center">
         {patient.hasBeenCalled ? (

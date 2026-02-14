@@ -56,6 +56,7 @@ function getOrInitCallState(callSid, seed = {}) {
     triageLevel: "green",
     reasoningSummary: "",
     matchedComplications: [],
+    symptomsMentioned: [],
     missingCriticalFields: [],
     stage: "identity",
     identityConfirmed: false,
@@ -123,6 +124,7 @@ function defaultDecision(record, utterance) {
   ];
   const isRed = redFlags.some((w) => t.includes(w));
 
+  const symptomsFromUtterance = utterance && utterance.trim() ? [utterance.trim().slice(0, 80)] : [];
   if (isRed) {
     return {
       next_question: "",
@@ -132,6 +134,7 @@ function defaultDecision(record, utterance) {
       reasoning_summary: "Red-flag symptom detected.",
       triage_confidence: 0.88,
       matched_complications: ["possible acute post-op complication"],
+      symptoms_mentioned: symptomsFromUtterance,
       patient_facing_ack: "Thank you for sharing that. Your care team should follow up urgently.",
       recommended_action:
         "Readmit patient to hospital for urgent evaluation of possible post-surgical complication.",
@@ -149,6 +152,7 @@ function defaultDecision(record, utterance) {
     reasoning_summary: "More detail needed for confident triage.",
     triage_confidence: 0.55,
     matched_complications: ["nonspecific post-op symptom"],
+    symptoms_mentioned: symptomsFromUtterance,
     patient_facing_ack: "Thanks for explaining that.",
     recommended_action: needsMore
       ? "Gathering more information before recommending action."
@@ -196,6 +200,9 @@ function coerceDecision(raw, record, utterance) {
     recommended_action:
       (typeof c.recommended_action === "string" && c.recommended_action.trim()) ||
       fb.recommended_action,
+    symptoms_mentioned: Array.isArray(c.symptoms_mentioned)
+      ? c.symptoms_mentioned.filter((s) => s != null && String(s).trim())
+      : (fb.symptoms_mentioned || []),
   };
   // Derive recommended_action from triage if agent didn't provide one
   if (!d.recommended_action) {
@@ -408,6 +415,9 @@ async function handleGather(patientId, callSid, answer) {
   record.reasoningSummary = decision.reasoning_summary;
   record.matchedComplications = decision.matched_complications;
   record.recommendedAction = decision.recommended_action;
+  record.symptomsMentioned = Array.isArray(decision.symptoms_mentioned)
+    ? decision.symptoms_mentioned.filter((s) => s && String(s).trim())
+    : record.symptomsMentioned || [];
 
   const canFollowup =
     decision.needs_followup && record.followupCount < MAX_FOLLOWUPS && record.turnCount < MAX_TURNS;

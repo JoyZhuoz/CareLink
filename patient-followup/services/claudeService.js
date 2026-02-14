@@ -27,10 +27,18 @@ Rules:
 - "NO" if they deny (e.g. "no", "wrong person", "they're not here")
 - "UNCLEAR" if ambiguous`;
 
-function buildTriageSystem(recoveryContext) {
+function buildTriageSystem(recoveryContext, priorCallsContext) {
   return `You are CareLink, an AI post-surgical patient triage agent.
 
 You are conducting a voice follow-up call with a post-surgical patient.
+${priorCallsContext ? `
+═══════════════════════════════════════════════════════════════
+PRIOR CALL(S) – USE AS CONTEXT FOR THIS FOLLOW-UP
+═══════════════════════════════════════════════════════════════
+${priorCallsContext}
+
+Reference prior symptoms and triage when relevant. Ask whether things have improved, worsened, or stayed the same since the last call.
+` : ""}
 Below is the **expected recovery document** for this patient, sourced from
 Perplexity medical research. Use it as your clinical reference.
 
@@ -56,6 +64,7 @@ Return JSON only:
   "reasoning_summary": "1-2 sentences: compare reported symptoms vs expected recovery",
   "triage_confidence": 0.0-1.0,
   "matched_complications": ["list of possible complication diagnoses from the recovery doc that match what the patient said; use the doc's own wording (e.g. surgical site infection, DVT). Empty array if nothing matches yet."],
+  "symptoms_mentioned": ["list of symptoms or concerns the patient reported during this call. Use short phrases (e.g. pain, swelling, fever, dizziness, sleep issues). Include everything the patient said across the full transcript so far. Empty array if none."],
   "patient_facing_ack": "brief empathetic acknowledgement of what patient said",
   "recommended_action": "specific actionable recommendation for the clinician (see below)"
 }
@@ -111,6 +120,31 @@ async function fetchRecoveryContext(patientId) {
     return doc._source?.expected_response_text || null;
   } catch (err) {
     console.warn("Could not fetch recovery context for", patientId, err.message);
+    return null;
+  }
+}
+
+/** Build a short summary of the patient's prior calls for context in follow-up calls. */
+async function fetchPriorCallsContext(patientId) {
+  try {
+    const doc = await esClient.get({ index: "patients", id: patientId });
+    const history = doc._source?.call_history;
+    if (!Array.isArray(history) || history.length === 0) return null;
+
+    const lines = history.slice(0, 5).map((call, i) => {
+      const date = call.call_date ? new Date(call.call_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Unknown date";
+      const triage = call.triage_level || "green";
+      const symptoms = call.symptoms_mentioned && call.symptoms_mentioned.length > 0
+        ? call.symptoms_mentioned.join("; ")
+        : "(no symptoms extracted)";
+      const summary = call.reasoning_summary ? call.reasoning_summary.slice(0, 120) + (call.reasoning_summary.length > 120 ? "…" : "") : "";
+      const change = call.condition_change || "";
+      const changeLabel = change ? ` [${change}]` : "";
+      return `Prior call ${i + 1} (${date})${changeLabel}: triage ${triage}. Symptoms: ${symptoms}. ${summary}`;
+    });
+    return "PREVIOUS CALL(S) FOR THIS PATIENT (use for follow-up context; ask about change since last time):\n" + lines.join("\n\n");
+  } catch (err) {
+    console.warn("Could not fetch prior calls for", patientId, err.message);
     return null;
   }
 }
@@ -172,8 +206,11 @@ async function classifyIdentity(answer) {
  * @returns {object|null} structured triage decision
  */
 async function getSymptomDecision(record, latestUtterance) {
-  // Step 1: Fetch recovery context from Elasticsearch
-  const recoveryContext = await fetchRecoveryContext(record.patientId);
+  // Step 1: Fetch recovery context and prior call history from Elasticsearch
+  const [recoveryContext, priorCallsContext] = await Promise.all([
+    fetchRecoveryContext(record.patientId),
+    fetchPriorCallsContext(record.patientId),
+  ]);
 
   // Step 2: Build the user message with full context
   const userPayload = {
@@ -195,7 +232,7 @@ async function getSymptomDecision(record, latestUtterance) {
     const resp = await anthropic.messages.create({
       model: MODEL,
       max_tokens: 600,
-      system: buildTriageSystem(recoveryContext),
+      system: buildTriageSystem(recoveryContext, priorCallsContext),
       messages: [
         {
           role: "user",

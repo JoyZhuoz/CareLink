@@ -18,10 +18,11 @@ import http from "http";
 import express from "express";
 import { Server as SocketIOServer } from "socket.io";
 
-// ── Load .env ────────────────────────────────────────────────────────────────
+// ── Load .env (server/.env first, then root .env) ─────────────────────────────
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, ".env") });
 dotenv.config({ path: path.join(__dirname, "..", ".env") });
-dotenv.config(); // also check root
+dotenv.config();
 
 // ── Patient-followup imports (ESM) ───────────────────────────────────────────
 import patientRoutes from "../patient-followup/routes/patients.js";
