@@ -42,6 +42,7 @@ body {
   padding: 0;
   font-family: "Anuphan", sans-serif;
   font-weight: 300;
+  color: var(--tertiary);
 }
 
 form {
@@ -58,6 +59,18 @@ form {
 
 .bg-tertiary {
   background-color: var(--tertiary);
+}
+
+.bg-secondary-50 {
+  background-color: color-mix(in srgb, var(--secondary) 50%, transparent);
+}
+
+.bg-secondary-20 {
+  background-color: color-mix(in srgb, var(--secondary) 20%, transparent);
+}
+
+.bg-gray {
+  background-color: #E7E7E7;
 }
 
 .rounded-corners{

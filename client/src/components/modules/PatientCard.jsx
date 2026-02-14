@@ -1,6 +1,6 @@
 import React from "react";
 
-const PatientCard = ({ patient }) => {
+const PatientCard = ({ patient, onSelect }) => {
   const getUrgencyColor = (urgency) => {
     switch (urgency.toLowerCase()) {
       case 'urgent':
@@ -15,7 +15,10 @@ const PatientCard = ({ patient }) => {
   };
 
   return (
-    <div className="bg-secondary rounded-corners p-8 transition-all duration-300">
+    <div
+      className="bg-secondary-50 shadow-md rounded-corners p-8 transition-all duration-300 cursor-pointer hover:-translate-y-1 hover:shadow-lg"
+      onClick={() => onSelect && onSelect(patient)}
+    >
       {/* Patient Avatar */}
       <div className="flex justify-center mb-6">
         <img
@@ -43,7 +46,7 @@ const PatientCard = ({ patient }) => {
         </div>
         <div>
           <h4 className="font-bold text-gray-900 text-xl mb-1">Recent Symptoms</h4>
-          <p className="text-gray-800 text-xl">{patient.symptoms}</p>
+          <p className="text-gray-800 text-xl">{Array.isArray(patient.symptoms) ? patient.symptoms.join(", ") : patient.symptoms}</p>
         </div>
       </div>
 
