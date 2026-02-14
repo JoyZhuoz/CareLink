@@ -67,13 +67,27 @@ router.get("/calls/:patientId", async (req, res) => {
   }
 });
 
-// ─── List all patients from static data ─────────────────────────────
+// ─── List all patients from Elasticsearch ───────────────────────────
 
-router.get("/patients", (req, res) => {
+router.get("/patients", async (req, res) => {
   try {
-    const patients = require("../../data/patients.json");
+    const patients = await elasticService.getAllPatients();
     res.json({ patients });
   } catch (err) {
+    console.error("Patients error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Get single patient ─────────────────────────────────────────────
+
+router.get("/patients/:patientId", async (req, res) => {
+  try {
+    const patient = await elasticService.getPatient(req.params.patientId);
+    if (!patient) return res.status(404).json({ error: "Patient not found" });
+    res.json({ patient });
+  } catch (err) {
+    console.error("Patient error:", err);
     res.status(500).json({ error: err.message });
   }
 });

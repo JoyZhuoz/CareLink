@@ -10,15 +10,30 @@ require("dotenv").config({ path: path.join(__dirname, "..", "..", ".env") });
 const esClient = require("../config/elasticsearch");
 
 const INDEX_DEFINITIONS = {
+  patients: {
+    mappings: {
+      dynamic: "true",
+      properties: {
+        patient_id: { type: "keyword" },
+        name: { type: "text", fields: { keyword: { type: "keyword" } } },
+        phone: { type: "keyword" },
+        age: { type: "integer" },
+        gender: { type: "keyword" },
+        surgery_type: { type: "text", fields: { keyword: { type: "keyword" } } },
+        surgery_date: { type: "date" },
+        risk_factors: { type: "keyword" },
+        call_history: { type: "nested", dynamic: true },
+        created_at: { type: "date" },
+      },
+    },
+  },
   patient_documents: {
     mappings: {
       properties: {
         patient_id: { type: "keyword" },
+        name: { type: "text", fields: { keyword: { type: "keyword" } } },
         doc_type: { type: "keyword" },
-        content: {
-          type: "semantic_text",
-          inference_id: "jina-embeddings",
-        },
+        content: { type: "semantic_text", inference_id: ".jina-embeddings-v3" },
         raw_text: { type: "text" },
         uploaded_at: { type: "date" },
       },
@@ -92,8 +107,7 @@ const INDEX_DEFINITIONS = {
         patient_id: { type: "keyword" },
         patient_name: { type: "text" },
         phone_number: { type: "keyword" },
-        pre_call_briefing: { type: "object", enabled: false },
-        medical_reference_used: { type: "keyword" },
+        conversation_id: { type: "keyword" },
         scheduled_at: { type: "date" },
         status: { type: "keyword" },
         call_sid: { type: "keyword" },
@@ -118,38 +132,15 @@ async function indexExists(name) {
   }
 }
 
-async function createInferenceEndpoint() {
-  const endpointId = "jina-embeddings";
+async function verifyInferenceEndpoint() {
+  // Use the built-in .multilingual-e5-small-elasticsearch endpoint
+  // It's pre-deployed on Elastic Cloud — no creation needed
+  const endpointId = ".multilingual-e5-small-elasticsearch";
   try {
-    await esClient.inference.get({ inference_id: endpointId });
-    console.log(`Inference endpoint "${endpointId}" already exists.`);
+    await esClient.inference.get({ task_type: "text_embedding", inference_id: endpointId });
+    console.log(`Inference endpoint "${endpointId}" is available (built-in).`);
   } catch (e) {
-    if (e.meta?.statusCode === 404) {
-      if (!process.env.JINA_API_KEY) {
-        console.warn(
-          "JINA_API_KEY not set — skipping inference endpoint creation."
-        );
-        return;
-      }
-      await esClient.inference.put({
-        inference_id: endpointId,
-        inference_config: {
-          service: "jinaai",
-          service_settings: {
-            api_key: process.env.JINA_API_KEY,
-            model_id: "jina-embeddings-v3",
-            similarity: "cosine",
-            dimensions: 1024,
-          },
-          task_settings: {
-            input_type: "ingest",
-          },
-        },
-      });
-      console.log(`Created inference endpoint "${endpointId}".`);
-    } else {
-      throw e;
-    }
+    console.warn(`Warning: built-in inference endpoint "${endpointId}" not found. semantic_text fields may not work.`);
   }
 }
 
@@ -198,6 +189,25 @@ async function createIngestPipeline() {
   }
 }
 
+const ES_CHAT_INFERENCE_ID =
+  process.env.ES_CHAT_INFERENCE_ID || ".anthropic-claude-4.6-opus-chat_completion";
+
+async function verifyChatEndpoint() {
+  try {
+    await esClient.inference.get({
+      task_type: "chat_completion",
+      inference_id: ES_CHAT_INFERENCE_ID,
+    });
+    console.log(
+      `Chat completion endpoint "${ES_CHAT_INFERENCE_ID}" is available.`
+    );
+  } catch (e) {
+    console.warn(
+      `Warning: chat completion endpoint "${ES_CHAT_INFERENCE_ID}" not found. AI converse will not work.`
+    );
+  }
+}
+
 async function createAllIndices() {
   for (const [name, definition] of Object.entries(INDEX_DEFINITIONS)) {
     const exists = await indexExists(name);
@@ -220,7 +230,8 @@ async function run() {
       `Connected to Elasticsearch ${info.version.number} (${info.cluster_name})`
     );
 
-    await createInferenceEndpoint();
+    await verifyInferenceEndpoint();
+    await verifyChatEndpoint();
     await createIngestPipeline();
     await createAllIndices();
 
@@ -236,4 +247,4 @@ if (require.main === module) {
   run();
 }
 
-module.exports = { indexExists, createAllIndices, createInferenceEndpoint, INDEX_DEFINITIONS };
+module.exports = { indexExists, createAllIndices, verifyInferenceEndpoint, verifyChatEndpoint, INDEX_DEFINITIONS };
