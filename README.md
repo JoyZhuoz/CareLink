@@ -60,6 +60,40 @@ First, 'npm install'
 Then open two separate terminals, and 'npm run dev' in the first, and 'npm start' in the second.
 Then open http://localhost:5173
 
+## Testing Twilio voice (tunnel + end-to-end)
+
+Twilio needs a public URL to send voice webhooks to your app. Use a tunnel when testing locally.
+
+1. **Start the server** (if not already): `npm start` (listens on port 3000).
+
+2. **Start a tunnel** in another terminal:
+   ```bash
+   npm run tunnel
+   ```
+   Copy the HTTPS URL it prints (e.g. `https://abc123.loca.lt`). If you use **ngrok** instead: `ngrok http 3000` and copy the HTTPS URL.
+
+3. **Point the server at the tunnel**: In `server/.env` set:
+   ```bash
+   PUBLIC_BASE_URL=https://your-tunnel-url-here
+   ```
+   Restart the server (`npm start`) so it uses this URL when creating Twilio calls.
+
+4. **Trigger a test call** (use your own phone in E.164, e.g. +14155551234):
+   ```bash
+   npm run test:twilio -- +14155551234
+   ```
+   Or set the number in env and run:
+   ```bash
+   TWILIO_TEST_TO=+14155551234 npm run test:twilio
+   ```
+   Your phone should ring; answer and follow the voice prompts (identity confirmation, then symptom questions).
+
+5. **Inspect call state** (optional): After a call, you can fetch the in-memory record:
+   ```bash
+   curl "http://localhost:3000/api/calls/CALL_SID"
+   ```
+   Replace `CALL_SID` with the value printed by the test script.
+
 <!-- ## How to go from this skeleton to your actual app
 
 Check out this [How to Get Started Guide](http://weblab.is/get-started) -->

@@ -41,11 +41,12 @@ app.use(express.urlencoded({ extended: false }));
 // allow us to process POST requests
 app.use(express.json());
 
-// connect user-defined routes
-app.use("/api", api);
-
+// Twilio routes first (has specific /api/calls, /twilio/* paths)
 const twilioRoutes = require("./twilio");
 app.use("/", twilioRoutes);
+
+// General API routes (has catch-all 404, so must come after twilio)
+app.use("/api", api);
 
 // load the compiled react files, which will serve /index.html and /bundle.js
 const reactPath = path.resolve(__dirname, "..", "client", "dist");
