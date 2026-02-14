@@ -2,6 +2,7 @@ import express from 'express';
 import * as twilioService from '../services/twilioService.js';
 import * as patientService from '../services/patientService.js';
 import * as embeddingService from '../services/embeddingService.js';
+import * as perplexityService from '../services/perplexityService.js';
 
 const router = express.Router();
 
@@ -115,6 +116,22 @@ router.post('/status/:patientId', (req, res) => {
 router.post('/call/:patientId', async (req, res) => {
   try {
     const patient = await patientService.getPatientById(req.params.patientId);
+
+    // Ensure Perplexity recovery context is populated before calling
+    try {
+      const existing = patient.expected_response_text;
+      if (!existing) {
+        console.log(`Fetching Perplexity recovery context for ${req.params.patientId}...`);
+        const expectedResponse = await perplexityService.getExpectedRecoveryResponse(patient);
+        await embeddingService.storeExpectedResponseEmbedding(req.params.patientId, expectedResponse);
+        console.log(`Recovery context saved for ${req.params.patientId}`);
+      } else {
+        console.log(`Recovery context already exists for ${req.params.patientId}`);
+      }
+    } catch (perplexityErr) {
+      console.warn(`Perplexity skipped for ${req.params.patientId}:`, perplexityErr.message);
+    }
+
     const call = await twilioService.initiateFollowUpCall(patient);
     res.json({ message: 'Call initiated', callSid: call.sid });
   } catch (error) {

@@ -1,5 +1,6 @@
 import twilio from "twilio";
 import dotenv from "dotenv";
+import { classifyIdentity as claudeClassifyIdentity, getSymptomDecision as claudeGetSymptomDecision } from "./claudeService.js";
 
 dotenv.config();
 
@@ -52,107 +53,15 @@ function getCallState(callSid) {
 }
 
 // ---------------------------------------------------------------------------
-// Elasticsearch Agent Builder — single API for all LLM reasoning
+// Identity confirmation via Claude
 // ---------------------------------------------------------------------------
-const agentEndpoint = process.env.ES_AGENT_BUILDER_ENDPOINT;
-const agentApiKey = process.env.ES_AGENT_BUILDER_API_KEY;
-
-/**
- * Generic call to the Elasticsearch Agent Builder endpoint.
- * The agent is configured in the Elastic Cloud dashboard with:
- *   - Claude as the LLM
- *   - medical_protocols + past_cases indices for retrieval
- *   - System prompt for triage reasoning
- * We just send structured input and parse the response.
- */
-async function callAgentBuilder(input) {
-  if (!agentEndpoint) return null;
-
-  const headers = { "Content-Type": "application/json" };
-  if (agentApiKey) {
-    headers["Authorization"] = `ApiKey ${agentApiKey}`;
-  }
-
-  try {
-    const response = await fetch(agentEndpoint, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(input),
-    });
-
-    if (!response.ok) {
-      console.error("Agent Builder call failed:", response.status);
-      return null;
-    }
-    const data = await response.json();
-    return extractAgentResponse(data);
-  } catch (err) {
-    console.error("Agent Builder error:", err.message);
-    return null;
-  }
-}
-
-/** Try common response envelope shapes from Agent Builder */
-function extractAgentResponse(data) {
-  if (!data || typeof data !== "object") return null;
-
-  // Direct structured output
-  if ("triage_level" in data || "next_question" in data || "classification" in data) return data;
-
-  // Nested in .output
-  if (data.output && typeof data.output === "object") return data.output;
-  if (typeof data.output === "string") {
-    try {
-      return JSON.parse(data.output);
-    } catch (_) {}
-  }
-
-  // Nested in .response
-  if (typeof data.response === "string") {
-    try {
-      return JSON.parse(data.response);
-    } catch (_) {}
-  }
-
-  // Nested in .result
-  if (data.result && typeof data.result === "object") return data.result;
-  if (typeof data.result === "string") {
-    try {
-      return JSON.parse(data.result);
-    } catch (_) {}
-  }
-
-  // Last message in a messages array
-  if (Array.isArray(data.messages) && data.messages.length > 0) {
-    const last = data.messages[data.messages.length - 1];
-    if (typeof last?.content === "string") {
-      try {
-        return JSON.parse(last.content);
-      } catch (_) {}
-    }
-  }
-
-  return data;
-}
-
-// ---------------------------------------------------------------------------
-// Identity confirmation via Agent Builder
-// ---------------------------------------------------------------------------
-async function classifyIdentityWithAgent(answer) {
+async function classifyIdentityWithClaude(answer) {
   if (!(answer && answer.trim())) return null;
 
-  const result = await callAgentBuilder({
-    task: "identity_confirmation",
-    input: {
-      question: "Are you the patient this call is for?",
-      answer: answer.trim(),
-    },
-  });
-
+  const result = await claudeClassifyIdentity(answer);
   if (!result) return null;
 
-  // Agent should return { classification: "YES" | "NO" | "UNCLEAR" }
-  const cls = (result.classification || result.answer || "").toString().trim().toUpperCase();
+  const cls = (result.classification || "").toString().trim().toUpperCase();
   if (cls.startsWith("YES")) return true;
   if (cls.startsWith("NO")) return false;
   return null;
@@ -169,33 +78,18 @@ function parseYesNo(answer) {
   return null;
 }
 
-/** Combined: Agent Builder first, keyword fallback */
+/** Combined: Claude first, keyword fallback */
 async function resolveIdentity(answer) {
-  let result = await classifyIdentityWithAgent(answer);
+  let result = await classifyIdentityWithClaude(answer);
   if (result === null) result = parseYesNo(answer);
   return result;
 }
 
 // ---------------------------------------------------------------------------
-// Symptom reasoning via Agent Builder (retrieval + Claude behind the scenes)
+// Symptom reasoning via Claude direct (retrieval from ES + Claude reasoning)
 // ---------------------------------------------------------------------------
-async function getAgentSymptomDecision(record, latestUtterance) {
-  const result = await callAgentBuilder({
-    task: "symptom_triage",
-    input: {
-      patient: {
-        patient_id: record.patientId || null,
-        surgery_type: record.surgeryType || null,
-        days_post_surgery: record.daysPostSurgery ?? null,
-      },
-      latest_patient_utterance: latestUtterance,
-      transcript: record.transcript,
-      followup_count_used: record.followupCount,
-      max_followups: MAX_FOLLOWUPS,
-    },
-  });
-
-  return result;
+async function getClaudeSymptomDecision(record, latestUtterance) {
+  return await claudeGetSymptomDecision(record, latestUtterance);
 }
 
 function defaultDecision(record, utterance) {
@@ -244,13 +138,27 @@ function defaultDecision(record, utterance) {
   };
 }
 
+// Only allow ending the call on first symptom turn if the utterance clearly contains a safety red-flag phrase.
+function hasClearSafetyRedFlag(utterance) {
+  const t = (utterance || "").toLowerCase();
+  const safetyPhrases = [
+    "chest pain", "can't breathe", "cannot breathe", "shortness of breath",
+    "trouble breathing", "uncontrolled bleeding", "bleeding a lot",
+    "confusion", "confused", "fever over 103", "104 fever",
+    "severe pain", "worst pain", "emergency", "911"
+  ];
+  return safetyPhrases.some(phrase => t.includes(phrase));
+}
+
 function coerceDecision(raw, record, utterance) {
   const fb = defaultDecision(record, utterance);
   const c = raw && typeof raw === "object" ? raw : {};
+  const agentReturnedValid = c && ("needs_followup" in c || "end_call" in c || "next_question" in c);
+
   const d = {
     next_question: typeof c.next_question === "string" ? c.next_question.trim() : "",
-    needs_followup: Boolean(c.needs_followup),
-    end_call: Boolean(c.end_call),
+    needs_followup: agentReturnedValid ? Boolean(c.needs_followup) : fb.needs_followup,
+    end_call: agentReturnedValid ? Boolean(c.end_call) : fb.end_call,
     triage_level: ["red", "yellow", "green"].includes(c.triage_level)
       ? c.triage_level
       : fb.triage_level,
@@ -283,12 +191,12 @@ function coerceDecision(raw, record, utterance) {
   if (d.needs_followup && !d.next_question) d.next_question = fb.next_question;
   if (!d.needs_followup) d.end_call = true;
 
-  // Guard: do not end call after first symptom reply unless red. Force at least one follow-up.
-  if (
-    record.followupCount === 0 &&
-    d.triage_level !== "red" &&
-    d.end_call
-  ) {
+  // First symptom turn: always ask at least one follow-up unless there's a clear safety red-flag in what they said.
+  const isFirstSymptomTurn = record.followupCount === 0;
+  const allowEndOnFirstTurn = isFirstSymptomTurn && (
+    d.triage_level === "red" && hasClearSafetyRedFlag(utterance)
+  );
+  if (isFirstSymptomTurn && d.end_call && !allowEndOnFirstTurn) {
     d.needs_followup = true;
     d.end_call = false;
     d.next_question =
@@ -471,12 +379,12 @@ async function handleGather(patientId, callSid, answer) {
 
   record.turnCount += 1;
 
-  // Agent Builder reasoning (retrieval + Claude, or fallback)
+  // Claude reasoning (ES retrieval + Claude, or fallback)
   let rawDecision = null;
   try {
-    rawDecision = await getAgentSymptomDecision(record, answer);
+    rawDecision = await getClaudeSymptomDecision(record, answer);
   } catch (e) {
-    console.error("Agent error:", e.message);
+    console.error("Claude reasoning error:", e.message);
   }
   const decision = coerceDecision(rawDecision, record, answer);
 
