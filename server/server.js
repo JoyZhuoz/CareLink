@@ -86,13 +86,19 @@ app.get("/health", (_req, res) => res.json({ status: "ok" }));
 const reactPath = path.resolve(__dirname, "..", "client", "dist");
 app.use(express.static(reactPath));
 
-// SPA fallback – let React Router handle all other GET routes
-app.get("*", (req, res) => {
+// SPA fallback – only for non-API GET (so /api/* never gets HTML)
+app.get("*", (req, res, next) => {
+  if (req.path.startsWith("/api")) return next();
   res.sendFile(path.join(reactPath, "index.html"), (err) => {
     if (err) {
       res.status(err.status || 500).send("Frontend not built yet – run `npm run build` first.");
     }
   });
+});
+// 404 for unmatched API routes
+app.use((req, res) => {
+  if (req.path.startsWith("/api")) return res.status(404).json({ error: "Not found" });
+  res.status(404).send("Not found");
 });
 
 // ── Error handler ────────────────────────────────────────────────────────────

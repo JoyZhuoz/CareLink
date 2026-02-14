@@ -24,6 +24,7 @@ const router = createBrowserRouter(
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/chatbot" element={<Chatbot />} />
       </Route>
+      <Route path="*" element={<NotFound />} />
     </Route>
   )
 )

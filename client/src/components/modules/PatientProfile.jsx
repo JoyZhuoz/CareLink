@@ -18,6 +18,7 @@ const PatientProfile = ({ patient, onBack, onViewSummary, onContact }) => {
     }
   };
   const getUrgencyColor = (urgency) => {
+    if (!urgency) return "bg-gray-500";
     switch (urgency.toLowerCase()) {
       case "urgent":
         return "bg-[#EB5757]";
@@ -127,15 +128,30 @@ const PatientProfile = ({ patient, onBack, onViewSummary, onContact }) => {
             <span className="font-normal text-gray-600">as of {today}</span>
           </h4>
           <div className="flex flex-wrap gap-2">
-            {patient.symptoms.map((symptom, i) => (
-              <span
-                key={i}
-                className="text-sm font-medium px-4 py-1.5 rounded-full"
-                style={{ backgroundColor: "var(--primary)", color: "white" }}
-              >
-                {symptom}
-              </span>
-            ))}
+            {(patient.symptoms || []).map((symptom, i) =>
+              symptom === "See call history" ? (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onViewSummary && onViewSummary();
+                  }}
+                  className="text-sm font-medium px-4 py-1.5 rounded-full cursor-pointer hover:opacity-90 transition-opacity border-0"
+                  style={{ backgroundColor: "var(--primary)", color: "white" }}
+                >
+                  See call history
+                </button>
+              ) : (
+                <span
+                  key={i}
+                  className="text-sm font-medium px-4 py-1.5 rounded-full"
+                  style={{ backgroundColor: "var(--primary)", color: "white" }}
+                >
+                  {symptom}
+                </span>
+              )
+            )}
           </div>
         </div>
 
@@ -152,11 +168,12 @@ const PatientProfile = ({ patient, onBack, onViewSummary, onContact }) => {
         {/* Buttons */}
         <div className="flex justify-center gap-6">
           <button
-            onClick={() => onViewSummary && onViewSummary(patient)}
+            type="button"
+            onClick={() => onViewSummary && onViewSummary()}
             className="text-white font-bold py-3 px-10 rounded-xl transition-all duration-200 hover:opacity-90"
             style={{ backgroundColor: "var(--primary)" }}
           >
-            Summary
+            See call history
           </button>
           <button
             onClick={handleContact}
