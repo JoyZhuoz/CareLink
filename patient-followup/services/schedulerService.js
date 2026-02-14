@@ -12,6 +12,16 @@ function startScheduler() {
   });
 
   console.log('Scheduler started - runs daily at 9 AM');
+
+  // Also run once on startup to catch any overdue patients immediately
+  setTimeout(async () => {
+    console.log('Running startup follow-up check for overdue patients...');
+    try {
+      await runFollowUpNow();
+    } catch (err) {
+      console.warn('Startup follow-up check failed:', err.message);
+    }
+  }, 5000);
 }
 
 async function runFollowUpNow() {

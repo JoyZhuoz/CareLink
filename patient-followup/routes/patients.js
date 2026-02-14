@@ -34,6 +34,16 @@ router.post('/bulk', async (req, res) => {
   }
 });
 
+// Get all patients (for dashboard)
+router.get('/', async (req, res) => {
+  try {
+    const patients = await patientService.getAllPatients();
+    res.json(patients);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get patients needing follow-up
 router.get('/followup', async (req, res) => {
   try {

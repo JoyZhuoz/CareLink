@@ -77,6 +77,19 @@ async function getPatientsForFollowup() {
     .filter(p => !p.call_history || p.call_history.length === 0);
 }
 
+async function getAllPatients() {
+  const response = await esClient.search({
+    index: INDEX_NAME,
+    query: { match_all: {} },
+    size: 500,
+  });
+
+  return response.hits.hits.map(hit => ({
+    patient_id: hit._id,
+    ...hit._source,
+  }));
+}
+
 async function getPatientById(patientId) {
   const response = await esClient.get({
     index: INDEX_NAME,
@@ -101,6 +114,7 @@ export {
   createIndex,
   addPatient,
   bulkImportPatients,
+  getAllPatients,
   getPatientsForFollowup,
   getPatientById,
   addCallToHistory
