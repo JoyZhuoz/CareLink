@@ -51,9 +51,9 @@ const PatientCard = ({ patient, onSelect }) => {
   const getUrgencyColor = (urgency) => {
     switch (urgency?.toLowerCase()) {
       case "urgent":
-        return "bg-[#EB5757] hover:bg-[#d94c4c]";
+        return "bg-[#EB5757]";
       case "minimal":
-        return "bg-green-500 hover:bg-green-600";
+        return "bg-green-500";
       case "monitor":
         return "bg-yellow-400 hover:bg-yellow-500";
       default:
@@ -78,12 +78,19 @@ const PatientCard = ({ patient, onSelect }) => {
         />
       </div>
 
-      {/* Patient Name and Date */}
+      {/* Patient Name + urgency dot, then date underneath */}
       <div className="text-center mb-6">
-        <h3 className="text-2xl font-bold text-gray-900">
-          {patient.name}
-          {patient.dischargeDate && <span className="font-medium"> - {patient.dischargeDate}</span>}
-        </h3>
+        <div className="flex items-center justify-center gap-2">
+          <h3 className="text-2xl font-bold text-gray-900">{patient.name}</h3>
+          <span
+            className={`inline-block w-3 h-3 rounded-full shrink-0 ${getUrgencyColor(patient.urgency)}`}
+            title={patient.urgency || "Urgency"}
+            aria-hidden
+          />
+        </div>
+        {patient.dischargeDate && (
+          <p className="text-gray-700 font-medium mt-1">{patient.dischargeDate}</p>
+        )}
       </div>
 
       {/* Two-column: Operation and Recent Symptoms */}
@@ -108,15 +115,13 @@ const PatientCard = ({ patient, onSelect }) => {
         </div>
       )}
 
-      {/* Action area: urgency badge OR countdown */}
-      <div className="flex gap-4 justify-center">
+      {/* Action area: "Call complete!" tag OR countdown */}
+      <div className="flex gap-4 justify-center items-center flex-wrap">
         {patient.hasBeenCalled ? (
-          /* ── Patient has been called → show urgency ── */
-          <button
-            className={`${getUrgencyColor(patient.urgency)} text-white font-bold py-3 px-6 rounded-xl transition-all duration-200`}
-          >
-            {patient.urgency}
-          </button>
+          <span className="inline-flex items-center gap-1.5 font-semibold py-2 px-4 rounded-lg bg-green-100 text-green-800 border border-green-300">
+            <span className="w-2 h-2 rounded-full bg-green-500" aria-hidden />
+            Call complete!
+          </span>
         ) : (
           /* ── Not yet called → show countdown to scheduled call ── */
           <div
