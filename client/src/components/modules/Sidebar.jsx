@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 const NAV_ROUTES = {
   dashboard: "/dashboard",
-  analytics: "/dashboard",
+  analytics: "/analytics",
   chatbot: "/chatbot",
 };
 
