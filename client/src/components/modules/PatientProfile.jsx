@@ -1,6 +1,22 @@
-import React from "react";
+import React, { useState } from "react";
 
-const PatientProfile = ({ patient, onBack, onViewSummary }) => {
+const PatientProfile = ({ patient, onBack, onViewSummary, onContact }) => {
+  const [callStatus, setCallStatus] = useState(null); // "loading" | "success" | "error"
+  const [callError, setCallError] = useState("");
+
+  const handleContact = async () => {
+    if (onContact) {
+      setCallStatus("loading");
+      setCallError("");
+      try {
+        await onContact(patient);
+        setCallStatus("success");
+      } catch (err) {
+        setCallStatus("error");
+        setCallError(err.message || "Failed to initiate call");
+      }
+    }
+  };
   const getUrgencyColor = (urgency) => {
     switch (urgency.toLowerCase()) {
       case "urgent":
@@ -142,10 +158,25 @@ const PatientProfile = ({ patient, onBack, onViewSummary }) => {
           >
             Summary
           </button>
-          <button className="bg-tertiary text-white font-bold py-3 px-10 rounded-xl transition-all duration-200">
-            Contact
+          <button
+            onClick={handleContact}
+            disabled={callStatus === "loading"}
+            className="bg-tertiary text-white font-bold py-3 px-10 rounded-xl transition-all duration-200 disabled:opacity-60"
+          >
+            {callStatus === "loading" ? "Calling..." : "Contact"}
           </button>
         </div>
+
+        {callStatus === "success" && (
+          <p className="text-center text-green-600 font-medium mt-4">
+            Call initiated successfully!
+          </p>
+        )}
+        {callStatus === "error" && (
+          <p className="text-center text-red-500 font-medium mt-4">
+            {callError}
+          </p>
+        )}
       </div>
     </div>
   );

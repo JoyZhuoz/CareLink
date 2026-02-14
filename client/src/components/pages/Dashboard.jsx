@@ -1,17 +1,10 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import PatientCards from "../modules/PatientCards";
 import PatientProfile from "../modules/PatientProfile";
 import CallSummary from "../modules/CallSummary";
-import Sidebar from "../modules/Sidebar";
 import SearchBar from "../modules/SearchBar";
 
-const SIDEBAR_MIN = 180;
-const SIDEBAR_MAX = 400;
-const SIDEBAR_DEFAULT = 350;
-
-
-// MOCK PATIENT DATA
-// Shared call history (same structure for all patients)
+// FALLBACK MOCK DATA (used when ES is unavailable)
 const SHARED_CALL_HISTORY = [
   {
     _index: "patients",
@@ -42,7 +35,7 @@ const SHARED_CALL_HISTORY = [
   },
 ];
 
-const patientsData = [
+const MOCK_PATIENTS = [
   { patient_id: "1001", name: "John Smith", phone: "+14155551234", age: 45, gender: "Male", surgery_type: "ACL reconstruction", surgery_date: "2026-02-11", discharge_date: "2026-02-15", risk_factors: ["diabetes", "obesity"], call_history: SHARED_CALL_HISTORY },
   { patient_id: "1002", name: "Maria Gonzalez", phone: "+14155552345", age: 62, gender: "Female", surgery_type: "Total knee replacement", surgery_date: "2026-02-09", discharge_date: "2026-02-12", risk_factors: ["hypertension"], call_history: SHARED_CALL_HISTORY },
   { patient_id: "1003", name: "David Chen", phone: "+14155553456", age: 38, gender: "Male", surgery_type: "Appendectomy", surgery_date: "2026-02-12", discharge_date: "2026-02-16", risk_factors: [], call_history: SHARED_CALL_HISTORY },
@@ -51,7 +44,6 @@ const patientsData = [
   { patient_id: "1006", name: "Samantha Lee", phone: "+14155556789", age: 29, gender: "Female", surgery_type: "Gallbladder removal", surgery_date: "2026-02-13", discharge_date: "2026-02-18", risk_factors: ["obesity"], call_history: SHARED_CALL_HISTORY },
 ];
 
-// Avatar URLs for display (not in API)
 const PATIENT_AVATARS = {
   "1001": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop",
   "1002": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop",
@@ -69,7 +61,6 @@ function formatDischargeDate(isoDate) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-/** Transform raw patient (API shape) to UI shape for PatientCard / PatientProfile */
 function patientToUI(raw) {
   const latestCall = raw.call_history && raw.call_history[0];
   const fields = latestCall && latestCall.fields ? latestCall.fields : {};
@@ -102,42 +93,35 @@ const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [viewCallSummary, setViewCallSummary] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isResizing, setIsResizing] = useState(false);
-  const resizeStartRef = useRef(null);
-
-  const handleResizeStart = (e) => {
-    e.preventDefault();
-    resizeStartRef.current = { x: e.clientX, width: sidebarWidth };
-    setIsResizing(true);
-  };
+  const [patientsData, setPatientsData] = useState(MOCK_PATIENTS);
 
   useEffect(() => {
-    if (!isResizing) return;
-    const onMove = (e) => {
-      const start = resizeStartRef.current;
-      if (!start) return;
-      const delta = e.clientX - start.x;
-      setSidebarWidth((w) =>
-        Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, start.width + delta))
-      );
-    };
-    const onUp = () => {
-      setIsResizing(false);
-      resizeStartRef.current = null;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    return () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-  }, [isResizing]);
+    async function fetchPatients() {
+      try {
+        const res = await fetch("/api/patients/all");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.patients && data.patients.length > 0) {
+            setPatientsData(data.patients);
+          }
+        }
+      } catch {
+        // ES unavailable — keep mock data
+      }
+    }
+    fetchPatients();
+  }, []);
+
+  const handleContact = async (patient) => {
+    const res = await fetch(`/api/twilio/call/${patient.patient_id}`, {
+      method: "POST",
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Call failed");
+    }
+    return data;
+  };
 
   const filteredPatients = patientsData
     .filter((raw) => {
@@ -152,90 +136,36 @@ const Dashboard = () => {
     .map(patientToUI);
 
   return (
-    <div className="flex min-h-screen bg-white">
-      <div
-        className="fixed top-0 left-0 h-screen z-10 flex shrink-0 flex-col"
-        style={{
-          width: isSidebarCollapsed ? 0 : sidebarWidth,
-          transition: isResizing ? "none" : "width 0.2s ease",
-          overflow: isSidebarCollapsed ? "hidden" : "visible",
-        }}
-      >
-        <div className="h-screen" style={{ width: sidebarWidth, minWidth: sidebarWidth }}>
-          <Sidebar activePage="dashboard" />
-        </div>
-        {!isSidebarCollapsed && (
-          <div
-            role="separator"
-            aria-label="Resize sidebar"
-            onMouseDown={handleResizeStart}
-            className="absolute top-0 right-0 bottom-0 w-2 cursor-col-resize hover:bg-primary/20 z-20"
-            style={{ right: 0 }}
-          />
-        )}
-        {!isSidebarCollapsed && (
-          <button
-            type="button"
-            onClick={() => setIsSidebarCollapsed(true)}
-            aria-label="Hide sidebar"
-            className="absolute top-4 right-4 w-8 h-8 rounded-lg flex items-center justify-center z-30 bg-secondary hover:bg-secondary/90 transition-colors"
-            style={{ color: "var(--tertiary)" }}
-          >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-          </button>
-        )}
-      </div>
+    <div className="mt-12 py-10 px-10">
+      {selectedPatient && viewCallSummary ? (
+        <CallSummary
+          patient={selectedPatient}
+          onBack={() => setViewCallSummary(false)}
+        />
+      ) : selectedPatient ? (
+        <PatientProfile
+          patient={selectedPatient}
+          onBack={() => {
+            setSelectedPatient(null);
+            setViewCallSummary(false);
+          }}
+          onViewSummary={() => setViewCallSummary(true)}
+          onContact={handleContact}
+        />
+      ) : (
+        <>
+          <SearchBar value={searchQuery} onChange={setSearchQuery} />
 
-      {isSidebarCollapsed && (
-        <button
-          type="button"
-          onClick={() => setIsSidebarCollapsed(false)}
-          aria-label="Show sidebar"
-          className="fixed left-0 top-1/2 -translate-y-1/2 w-6 h-12 rounded-r-lg flex items-center justify-center z-40 shadow-md bg-secondary hover:bg-secondary/90 transition-colors"
-          style={{ color: "var(--tertiary)" }}
-        >
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-          </svg>
-        </button>
+          <h2 className="text-2xl font-bold mb-6" style={{ color: "var(--tertiary)" }}>
+            Your Patients
+          </h2>
+
+          <PatientCards patients={filteredPatients} onSelect={(p) => {
+            setSelectedPatient(p);
+            setViewCallSummary(false);
+          }} />
+        </>
       )}
-
-      {/* Main content area */}
-      <main
-        className={`flex-1 min-h-screen mt-12 py-10 transition-all duration-200 px-10`}
-        style={{ marginLeft: isSidebarCollapsed ? 0 : sidebarWidth }}
-      >
-        {selectedPatient && viewCallSummary ? (
-          <CallSummary
-            patient={selectedPatient}
-            onBack={() => setViewCallSummary(false)}
-          />
-        ) : selectedPatient ? (
-          <PatientProfile
-            patient={selectedPatient}
-            onBack={() => {
-              setSelectedPatient(null);
-              setViewCallSummary(false);
-            }}
-            onViewSummary={() => setViewCallSummary(true)}
-          />
-        ) : (
-          <>
-            <SearchBar value={searchQuery} onChange={setSearchQuery} />
-
-            <h2 className="text-2xl font-bold mb-6" style={{ color: "var(--tertiary)" }}>
-              Your Patients
-            </h2>
-
-            <PatientCards patients={filteredPatients} onSelect={(p) => {
-              setSelectedPatient(p);
-              setViewCallSummary(false);
-            }} />
-          </>
-        )}
-      </main>
     </div>
   );
 };

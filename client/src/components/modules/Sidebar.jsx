@@ -1,6 +1,15 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
+
+const NAV_ROUTES = {
+  dashboard: "/dashboard",
+  analytics: "/dashboard",
+  chatbot: "/chatbot",
+};
 
 const Sidebar = ({ activePage }) => {
+  const navigate = useNavigate();
+
   const navItems = [
     {
       id: "dashboard",
@@ -50,6 +59,7 @@ const Sidebar = ({ activePage }) => {
           return (
             <button
               key={item.id}
+              onClick={() => navigate(NAV_ROUTES[item.id])}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-left font-semibold transition-all duration-200 ${
                 isActive
                   ? "bg-secondary"

@@ -58,6 +58,16 @@ async function bulkImportPatients(patients) {
   return await esClient.bulk({ operations });
 }
 
+async function getAllPatients() {
+  const response = await esClient.search({
+    index: INDEX_NAME,
+    query: { match_all: {} },
+    size: 500,
+  });
+
+  return response.hits.hits.map(hit => ({ id: hit._id, ...hit._source }));
+}
+
 async function getPatientsForFollowup() {
   const response = await esClient.search({
     index: INDEX_NAME,
@@ -101,6 +111,7 @@ export {
   createIndex,
   addPatient,
   bulkImportPatients,
+  getAllPatients,
   getPatientsForFollowup,
   getPatientById,
   addCallToHistory
