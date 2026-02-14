@@ -73,6 +73,32 @@ function extractSymptomsFromCall(call) {
 }
 
 /**
+ * Normalize a call from either storage format for symptom extraction.
+ * - Twilio format: { transcript: [{ speaker, text }], reasoning_summary, matched_complications }
+ * - ES "fields" format: { fields: { "transcript.text": [...], reasoning_summary: [...], ... } }
+ */
+function normalizeCall(call) {
+  if (!call) return null;
+  const f = call.fields;
+  if (f && typeof f === 'object') {
+    const transcriptTexts = f['transcript.text'] || [];
+    const transcriptSpeakers = f['transcript.speaker'] || [];
+    const transcript = transcriptTexts.map((text, i) => ({
+      speaker: transcriptSpeakers[i] || 'ai',
+      text: typeof text === 'string' ? text : String(text || ''),
+    }));
+    const reasoning_summary = (f.reasoning_summary && f.reasoning_summary[0]) || '';
+    const matched_complications = f.matched_complications;
+    return { transcript, reasoning_summary, matched_complications };
+  }
+  return {
+    transcript: Array.isArray(call.transcript) ? call.transcript : [],
+    reasoning_summary: call.reasoning_summary ?? '',
+    matched_complications: call.matched_complications,
+  };
+}
+
+/**
  * Compute analytics stats from all patients in the index.
  * @returns {Promise<{
  *   totalPatients: number,
@@ -82,7 +108,7 @@ function extractSymptomsFromCall(call) {
  *   byGender: Record<string, number>,
  *   byRiskFactor: Record<string, number>,
  *   totalCalls: number,
- *   patientsWithCalls: number,
+ *   averageDaysInHospital: number | null,
  *   patientsDueFollowUp: number
  * }>}
  */
@@ -106,38 +132,61 @@ export async function getAnalytics() {
   }
 
   let totalCalls = 0;
-  let patientsWithCalls = 0;
   const ageDistribution = {};
   for (const [,, label] of AGE_BUCKETS) ageDistribution[label] = 0;
-  const symptomCounts = {};
+  /** symptom -> surgery_type -> count (stacked chart: same surgery_type keys as bySurgeryType) */
+  const symptomCountsBySurgery = {};
+  /** Post-op days per patient = discharge_date − surgery_date (not stored in DB; derived from both dates). */
+  const postOpDaysPerPatient = [];
 
   for (const p of patients) {
-    const n = (p.call_history || []).length;
-    if (n > 0) patientsWithCalls += 1;
-    totalCalls += n;
+    totalCalls += (p.call_history || []).length;
+
+    const surgeryDate = p.surgery_date ? new Date(p.surgery_date) : null;
+    const dischargeDate = p.discharge_date ? new Date(p.discharge_date) : null;
+    if (surgeryDate && dischargeDate && !Number.isNaN(surgeryDate.getTime()) && !Number.isNaN(dischargeDate.getTime())) {
+      const days = Math.round((dischargeDate.getTime() - surgeryDate.getTime()) / 86400000);
+      if (days >= 0) postOpDaysPerPatient.push(days);
+    }
 
     const bucket = getAgeBucket(p.age);
     if (bucket) ageDistribution[bucket] = (ageDistribution[bucket] || 0) + 1;
 
+    // Use same key as surgery frequency graph (bySurgeryType): raw surgery_type
+    const surgeryType = p.surgery_type != null && p.surgery_type !== '' ? String(p.surgery_type) : 'Unknown';
+
     for (const call of p.call_history || []) {
-      const sym = extractSymptomsFromCall(call);
-      Object.entries(sym).forEach(([s, c]) => {
-        symptomCounts[s] = (symptomCounts[s] || 0) + c;
+      const norm = normalizeCall(call);
+      if (!norm) continue;
+
+      const sym = extractSymptomsFromCall(norm);
+      Object.entries(sym).forEach(([symptom, count]) => {
+        if (!symptomCountsBySurgery[symptom]) symptomCountsBySurgery[symptom] = {};
+        symptomCountsBySurgery[symptom][surgeryType] = (symptomCountsBySurgery[symptom][surgeryType] || 0) + count;
       });
     }
   }
+
+  // Order of surgery types matching surgery frequency graph (same keys as bySurgeryType)
+  const surgeryTypeOrder = Object.keys(bySurgeryType).sort();
+
+  const averageDaysInHospital =
+    postOpDaysPerPatient.length > 0
+      ? Math.round(sum(postOpDaysPerPatient) / postOpDaysPerPatient.length)
+      : null;
 
   return {
     totalPatients,
     totalSurgeries: totalPatients,
     averageAge,
+    averageDaysInHospital,
     ageDistribution,
     bySurgeryType,
     byGender,
     byRiskFactor: riskFactorCounts,
     totalCalls,
-    patientsWithCalls,
     patientsDueFollowUp: followUpPatients.length,
-    symptomsFromCalls: symptomCounts,
+    symptomsFromCalls: symptomCountsBySurgery,
+    surgeryTypeOrder,
   };
 }
