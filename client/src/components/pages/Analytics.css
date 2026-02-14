@@ -107,6 +107,11 @@
   width: 100%;
 }
 
+/* Tooltip above legend when hovering symptoms chart */
+.analytics-symptoms-chart .recharts-tooltip-wrapper {
+  z-index: 100;
+}
+
 .analytics-chart-empty {
   color: #888;
   font-size: 0.9rem;

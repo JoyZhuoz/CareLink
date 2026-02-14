@@ -14,13 +14,23 @@ import {
 } from "recharts";
 import "./Analytics.css";
 
+/** Title-case for column/label display; "ACL" is always all caps. */
+function toTitleCase(str) {
+  if (str == null || typeof str !== "string") return "";
+  return str
+    .trim()
+    .split(/\s+/)
+    .map((word) => (word.toLowerCase() === "acl" ? "ACL" : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()))
+    .join(" ");
+}
+
 /** Dashboard palette: primary, secondary, tertiary, primary--dim */
 const GENDER_COLORS = ["var(--primary)", "var(--secondary)", "var(--tertiary)", "var(--primary--dim)"];
 
 const DonutChart = ({ data }) => {
   const entries = Object.entries(data).filter(([, v]) => Number(v) > 0);
   if (entries.length === 0) return <p className="analytics-chart-empty">No data</p>;
-  const chartData = entries.map(([name, value]) => ({ name, value }));
+  const chartData = entries.map(([name, value]) => ({ name: toTitleCase(name), value }));
   return (
     <div className="analytics-chart-wrap analytics-donut-wrap">
       <ResponsiveContainer width="100%" height={280}>
@@ -63,9 +73,10 @@ function wrapTickLabel(text, maxChars = 14) {
   return [text.slice(0, splitAt).trim(), text.slice(splitAt).trim()].filter(Boolean).join("\n");
 }
 
-/** Custom X-axis tick. */
+/** Custom X-axis tick; labels are title-cased. */
 const MultiLineTick = ({ x, y, payload, fontSize = 12 }) => {
-  const lines = wrapTickLabel(payload?.value ?? "", 14).split("\n");
+  const raw = payload?.value ?? "";
+  const lines = wrapTickLabel(typeof raw === "string" ? raw : String(raw), 14).split("\n");
   const lineHeight = fontSize + 2;
   return (
     <g transform={`translate(${x},${y})`}>
@@ -79,7 +90,7 @@ const MultiLineTick = ({ x, y, payload, fontSize = 12 }) => {
           fill="var(--tertiary)"
           fontSize={fontSize}
         >
-          {line}
+          {toTitleCase(line)}
         </text>
       ))}
     </g>
@@ -109,7 +120,7 @@ const CountBarChart = ({ data, barColor = "var(--primary)", sortOrder }) => {
   const entries = Object.entries(data)
     .filter(([, v]) => Number(v) > 0)
     .sort((a, b) => (sortOrder === "asc" ? a[1] - b[1] : b[1] - a[1]))
-    .map(([name, count]) => ({ name, count }));
+    .map(([name, count]) => ({ name: toTitleCase(name), count }));
   if (entries.length === 0) return <p className="analytics-chart-empty">No data</p>;
   return (
     <div className="analytics-chart-wrap analytics-bar-wrap">
@@ -127,6 +138,93 @@ const CountBarChart = ({ data, barColor = "var(--primary)", sortOrder }) => {
           <Bar dataKey="count" fill={barColor} name="Count" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
+    </div>
+  );
+};
+
+/** Maximally distinct hues for surgery-type stacks (no similar reds/greens). */
+const SURGERY_COLORS = [
+  "#2563eb", /* blue */
+  "#ea580c", /* orange */
+  "#16a34a", /* green */
+  "#9333ea", /* purple */
+  "#b91c1c", /* red */
+  "#0d9488", /* teal */
+  "#ca8a04", /* gold */
+  "#db2777", /* pink */
+];
+
+/**
+ * Symptoms chart: stacked bars by surgery type (same surgery_type as surgery frequency graph).
+ * data: { symptom: { [surgery_type]: count } } from API; surgeryTypeOrder: same keys as bySurgeryType.
+ */
+const SymptomsStackedChart = ({ data, surgeryTypeOrder }) => {
+  const raw = data || {};
+  const orderFromApi = Array.isArray(surgeryTypeOrder) ? surgeryTypeOrder : [];
+
+  // Detect nested format: value is object and its values are numbers (surgery_type -> count)
+  const isNestedBySurgery = (v) =>
+    v && typeof v === "object" && !Array.isArray(v) &&
+    Object.values(v).every((n) => typeof n === "number");
+
+  const fromData = [...new Set(
+    Object.values(raw).flatMap((bySurgery) => (isNestedBySurgery(bySurgery) ? Object.keys(bySurgery) : []))
+  )];
+  const allSurgeryTypes = orderFromApi.length > 0
+    ? [...orderFromApi.filter((k) => fromData.includes(k)), ...fromData.filter((k) => !orderFromApi.includes(k)).sort()]
+    : fromData.sort();
+
+  const entries = Object.entries(raw)
+    .map(([name, bySurgery]) => {
+      const segments = isNestedBySurgery(bySurgery)
+        ? bySurgery
+        : typeof bySurgery === "number"
+          ? { All: bySurgery }
+          : {};
+      const total = Object.entries(segments).reduce((sum, [, v]) => sum + (Number(v) || 0), 0);
+      const row = { name: toTitleCase(name), total };
+      allSurgeryTypes.forEach((st) => {
+        row[st] = segments[st] ?? 0;
+      });
+      if (allSurgeryTypes.length === 0 && total > 0) {
+        row.All = total;
+      }
+      return row;
+    })
+    .filter((e) => e.total > 0)
+    .sort((a, b) => b.total - a.total);
+
+  const surgeryTypes = allSurgeryTypes.length > 0 ? allSurgeryTypes : (entries.some((e) => e.All != null) ? ["All"] : []);
+  return (
+    <div className="analytics-chart-wrap analytics-bar-wrap analytics-symptoms-chart">
+      {entries.length === 0 ? (
+        <p className="analytics-chart-empty">No symptom data from patient calls yet. Data is extracted from follow-up call transcripts and summaries.</p>
+      ) : (
+        <ResponsiveContainer width="100%" height={440}>
+          <BarChart data={entries} margin={CHART_MARGIN} barCategoryGap={`${BAR_CATEGORY_GAP_PCT}%`}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--medgrey)" />
+            <XAxis
+              dataKey="name"
+              tick={<MultiLineTick fontSize={10} />}
+              height={40}
+              interval={0}
+            />
+            <YAxis tick={{ fontSize: 12, fill: "var(--tertiary)" }} allowDecimals={false} width={28} />
+            <Tooltip wrapperStyle={{ zIndex: 100 }} />
+            <Legend />
+            {surgeryTypes.map((key, i) => (
+              <Bar
+                key={key}
+                dataKey={key}
+                stackId="surgery"
+                fill={SURGERY_COLORS[i % SURGERY_COLORS.length]}
+                name={toTitleCase(key)}
+                radius={i === surgeryTypes.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+              />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      )}
     </div>
   );
 };
@@ -196,8 +294,8 @@ const Analytics = () => {
           <div className="value">{stats.totalCalls}</div>
         </div>
         <div className="analytics-stat-card">
-          <div className="label">Patients with calls</div>
-          <div className="value">{stats.patientsWithCalls}</div>
+          <div className="label">Avg. post-op days in hospital</div>
+          <div className="value">{stats.averageDaysInHospital != null ? `${stats.averageDaysInHospital} days` : "—"}</div>
         </div>
         <div className="analytics-stat-card">
           <div className="label">Due for follow-up</div>
@@ -219,7 +317,7 @@ const Analytics = () => {
       <div className="analytics-charts-row">
         <div className="analytics-section">
           <h3>Surgery Frequency</h3>
-          <CountBarChart data={stats.bySurgeryType || {}} />
+          <CountBarChart data={stats.bySurgeryType || {}} barColor="var(--tertiary)" />
         </div>
         <div className="analytics-section">
           <h3>Risk Factors</h3>
@@ -229,8 +327,8 @@ const Analytics = () => {
 
       <div className="analytics-section">
         <h3>Symptoms From Call Transcripts</h3>
-        <p className="analytics-subtitle analytics-section-desc">Mentions extracted from follow-up call transcripts and summaries.</p>
-        <CountBarChart data={stats.symptomsFromCalls || {}} barColor="var(--tertiary)" />
+        <p className="analytics-subtitle analytics-section-desc">Mentions extracted from follow-up call transcripts and summaries, stacked by surgery type.</p>
+        <SymptomsStackedChart data={stats.symptomsFromCalls} surgeryTypeOrder={stats.surgeryTypeOrder} />
       </div>
     </div>
   );
