@@ -1,8 +1,26 @@
 import twilio from "twilio";
 import dotenv from "dotenv";
 import { classifyIdentity as claudeClassifyIdentity, getSymptomDecision as claudeGetSymptomDecision } from "./claudeService.js";
+import * as elevenLabsService from "./elevenLabsService.js";
 
 dotenv.config();
+
+/** Use ElevenLabs for natural voice when configured; otherwise Twilio Say. */
+async function playOrSay(node, text) {
+  if (!text || !text.trim()) return;
+  if (elevenLabsService.isConfigured()) {
+    try {
+      const url = await elevenLabsService.getPlayUrl(text);
+      if (url) node.play(url);
+      else node.say({ voice: "alice" }, text);
+    } catch (e) {
+      console.warn("ElevenLabs TTS failed, using Twilio Say:", e.message);
+      node.say({ voice: "alice" }, text);
+    }
+  } else {
+    node.say({ voice: "alice" }, text);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Twilio client
@@ -215,15 +233,14 @@ function coerceDecision(raw, record, utterance) {
  * Generate initial TwiML for a follow-up call.
  * Starts with identity confirmation, then a symptom question + recording.
  */
-function generateVoiceResponse(patient) {
+async function generateVoiceResponse(patient) {
   const VoiceResponse = twilio.twiml.VoiceResponse;
   const twiml = new VoiceResponse();
 
   const patientId = patient.patient_id;
   const name = patient.name || "the patient";
 
-  // Greet and ask for identity confirmation
-  twiml.say({ voice: "alice" }, "Hi, this is CareLink calling for your post-surgery check-in.");
+  await playOrSay(twiml, "Hi, this is CareLink calling for your post-surgery check-in.");
 
   const gather = twiml.gather({
     input: "speech dtmf",
@@ -232,13 +249,12 @@ function generateVoiceResponse(patient) {
     timeout: 6,
     speechTimeout: "auto",
   });
-  gather.say(
-    { voice: "alice" },
+  await playOrSay(
+    gather,
     `To confirm privacy, is this ${name}? Say yes or no, or press 1 for yes and 2 for no.`
   );
 
-  // Fallback if no input
-  twiml.say({ voice: "alice" }, "Sorry, I didn't catch that.");
+  await playOrSay(twiml, "Sorry, I didn't catch that.");
   const retryGather = twiml.gather({
     input: "speech dtmf",
     action: `${baseUrl}/api/twilio/gather/${patientId}`,
@@ -246,8 +262,8 @@ function generateVoiceResponse(patient) {
     timeout: 6,
     speechTimeout: "auto",
   });
-  retryGather.say(
-    { voice: "alice" },
+  await playOrSay(
+    retryGather,
     "Are you the patient this call is for? Say yes or no, or press 1 for yes and 2 for no."
   );
 
@@ -288,8 +304,8 @@ async function handleGather(patientId, callSid, answer) {
   if (record.stage === "identity") {
     if (!answer) {
       const msg = "I didn't catch that. Are you the patient?";
-      twiml.say(
-        { voice: "alice" },
+      await playOrSay(
+        twiml,
         "I didn't catch that. Please say yes or no, or press 1 for yes and 2 for no."
       );
       const g = twiml.gather({
@@ -299,7 +315,7 @@ async function handleGather(patientId, callSid, answer) {
         timeout: 6,
         speechTimeout: "auto",
       });
-      g.say({ voice: "alice" }, "Are you the patient?");
+      await playOrSay(g, "Are you the patient?");
       logAI(msg);
       return twiml.toString();
     }
@@ -312,7 +328,7 @@ async function handleGather(patientId, callSid, answer) {
       record.stage = "symptoms";
       const symptomQ =
         "How are you feeling today, and what symptoms are most bothering you right now?";
-      twiml.say({ voice: "alice" }, "Thank you for confirming.");
+      await playOrSay(twiml, "Thank you for confirming.");
       const g = twiml.gather({
         input: "speech dtmf",
         action: `${baseUrl}/api/twilio/gather/${patientId}`,
@@ -320,7 +336,7 @@ async function handleGather(patientId, callSid, answer) {
         timeout: 6,
         speechTimeout: "auto",
       });
-      g.say({ voice: "alice" }, symptomQ);
+      await playOrSay(g, symptomQ);
       logAI("Thank you for confirming. " + symptomQ);
       return twiml.toString();
     }
@@ -328,7 +344,7 @@ async function handleGather(patientId, callSid, answer) {
     if (isPatient === false) {
       const msg =
         "Thanks for letting me know. For privacy, I can only continue with the patient directly. Goodbye.";
-      twiml.say({ voice: "alice" }, msg);
+      await playOrSay(twiml, msg);
       twiml.hangup();
       logAI(msg);
       record.completedAt = new Date().toISOString();
@@ -338,7 +354,7 @@ async function handleGather(patientId, callSid, answer) {
     if (record.identityAttempts >= MAX_IDENTITY_ATTEMPTS) {
       const msg =
         "Sorry, I couldn't confirm identity. For privacy, I'll end this call now. Goodbye.";
-      twiml.say({ voice: "alice" }, msg);
+      await playOrSay(twiml, msg);
       twiml.hangup();
       logAI(msg);
       record.completedAt = new Date().toISOString();
@@ -353,7 +369,7 @@ async function handleGather(patientId, callSid, answer) {
       timeout: 6,
       speechTimeout: "auto",
     });
-    g.say({ voice: "alice" }, retryMsg);
+    await playOrSay(g, retryMsg);
     logAI(retryMsg);
     return twiml.toString();
   }
@@ -361,8 +377,8 @@ async function handleGather(patientId, callSid, answer) {
   // ---- Symptom stage ----
   if (!answer) {
     const retryMsg = "I didn't catch that. Please describe how you're feeling.";
-    twiml.say(
-      { voice: "alice" },
+    await playOrSay(
+      twiml,
       "I didn't catch that. Could you repeat your symptoms in a short sentence?"
     );
     const g = twiml.gather({
@@ -372,7 +388,7 @@ async function handleGather(patientId, callSid, answer) {
       timeout: 6,
       speechTimeout: "auto",
     });
-    g.say({ voice: "alice" }, "Please describe how you're feeling.");
+    await playOrSay(g, "Please describe how you're feeling.");
     logAI(retryMsg);
     return twiml.toString();
   }
@@ -401,7 +417,7 @@ async function handleGather(patientId, callSid, answer) {
     const ackAndQuestion = [decision.patient_facing_ack, decision.next_question]
       .filter(Boolean)
       .join(" ");
-    if (decision.patient_facing_ack) twiml.say({ voice: "alice" }, decision.patient_facing_ack);
+    if (decision.patient_facing_ack) await playOrSay(twiml, decision.patient_facing_ack);
     const g = twiml.gather({
       input: "speech dtmf",
       action: `${baseUrl}/api/twilio/gather/${patientId}`,
@@ -409,12 +425,12 @@ async function handleGather(patientId, callSid, answer) {
       timeout: 6,
       speechTimeout: "auto",
     });
-    g.say({ voice: "alice" }, decision.next_question);
+    await playOrSay(g, decision.next_question);
     logAI(ackAndQuestion);
   } else {
     let closingMsg = "";
     if (decision.patient_facing_ack) {
-      twiml.say({ voice: "alice" }, decision.patient_facing_ack);
+      await playOrSay(twiml, decision.patient_facing_ack);
       closingMsg += decision.patient_facing_ack + " ";
     }
 
@@ -435,11 +451,11 @@ async function handleGather(patientId, callSid, answer) {
         "Keep following your post-surgery care instructions. " +
         "We will check in again at your next scheduled follow-up.";
     }
-    twiml.say({ voice: "alice" }, triageMsg);
+    await playOrSay(twiml, triageMsg);
     closingMsg += triageMsg;
 
     const farewell = "Thank you for your time. Take care and have a good day. Goodbye.";
-    twiml.say({ voice: "alice" }, farewell);
+    await playOrSay(twiml, farewell);
     closingMsg += " " + farewell;
 
     logAI(closingMsg.trim());

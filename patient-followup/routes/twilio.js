@@ -3,14 +3,23 @@ import * as twilioService from '../services/twilioService.js';
 import * as patientService from '../services/patientService.js';
 import * as embeddingService from '../services/embeddingService.js';
 import * as perplexityService from '../services/perplexityService.js';
+import * as elevenLabsService from '../services/elevenLabsService.js';
 
 const router = express.Router();
+
+// ---------- ElevenLabs TTS: serve cached audio for Twilio <Play> ----------
+router.get('/tts/play/:id', (req, res) => {
+  const entry = elevenLabsService.getCachedAudio(req.params.id);
+  if (!entry) return res.status(404).send('Audio not found or expired');
+  res.set('Content-Type', entry.contentType);
+  res.send(entry.buffer);
+});
 
 // ---------- Voice webhook (call starts here) ----------
 router.post('/voice/:patientId', async (req, res) => {
   try {
     const patient = await patientService.getPatientById(req.params.patientId);
-    const twiml = twilioService.generateVoiceResponse(patient);
+    const twiml = await twilioService.generateVoiceResponse(patient);
     res.type('text/xml').send(twiml);
   } catch (error) {
     console.error('Voice webhook error:', error.message);
