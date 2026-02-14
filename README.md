@@ -9,9 +9,7 @@ All teammates will need (explained in weblab.is/hw0)
 - Visual Studio Code (or another code editor)
 - the Prettier VSCode extension
 
-Also, all of you will need to go through the MongoDB Atlas setup (https://bit.ly/mongo-setup).
-
-Additionally for authentication, one of you will need to obtain a CLIENT_ID, instructions are at https://bit.ly/gauth-mit.
+This project is currently configured for a no-auth hackathon demo and does not require MongoDB.
 
 ## Downloading these files
 
@@ -47,12 +45,10 @@ Now the rest of your teammates can pull all these files with a 'git pull'!
 
 Post on Piazza if you run into any issues
 
-## What you need to change in the skeleton
+## What you need to configure
 
-- Change the Frontend CLIENT_ID (Skeleton.js) to your team's CLIENT_ID (obtain this at https://bit.ly/gauth-mit)
-- Change the Server CLIENT_ID to the same CLIENT_ID (auth.js)
-- Change the Database SRV (mongoConnectionURL) for Atlas (server.js). You got this in the MongoDB setup. remember to replace <password> and <dbname> (should be no < or > in your SRV) (From: https://bit.ly/mongo-setup)
-- Change the Database Name for MongoDB to whatever you put in the SRV to replace <dbname> (server.js)
+- Set Twilio environment variables in `.env` based on `.env.example`.
+- Set `PUBLIC_BASE_URL` so Twilio callbacks can reach your server.
 - (Optional) Add a favicon to your website at the path client/dist/favicon.ico
 - (Optional) Update website title in client/dist/index.html
 - (Optional) Update this README file ;)
@@ -63,6 +59,40 @@ Post on Piazza if you run into any issues
 First, 'npm install'
 Then open two separate terminals, and 'npm run dev' in the first, and 'npm start' in the second.
 Then open http://localhost:5173
+
+## Testing Twilio voice (tunnel + end-to-end)
+
+Twilio needs a public URL to send voice webhooks to your app. Use a tunnel when testing locally.
+
+1. **Start the server** (if not already): `npm start` (listens on port 3000).
+
+2. **Start a tunnel** in another terminal:
+   ```bash
+   npm run tunnel
+   ```
+   Copy the HTTPS URL it prints (e.g. `https://abc123.loca.lt`). If you use **ngrok** instead: `ngrok http 3000` and copy the HTTPS URL.
+
+3. **Point the server at the tunnel**: In `server/.env` set:
+   ```bash
+   PUBLIC_BASE_URL=https://your-tunnel-url-here
+   ```
+   Restart the server (`npm start`) so it uses this URL when creating Twilio calls.
+
+4. **Trigger a test call** (use your own phone in E.164, e.g. +14155551234):
+   ```bash
+   npm run test:twilio -- +14155551234
+   ```
+   Or set the number in env and run:
+   ```bash
+   TWILIO_TEST_TO=+14155551234 npm run test:twilio
+   ```
+   Your phone should ring; answer and follow the voice prompts (identity confirmation, then symptom questions).
+
+5. **Inspect call state** (optional): After a call, you can fetch the in-memory record:
+   ```bash
+   curl "http://localhost:3000/api/calls/CALL_SID"
+   ```
+   Replace `CALL_SID` with the value printed by the test script.
 
 <!-- ## How to go from this skeleton to your actual app
 
