@@ -18,8 +18,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* TODO: REPLACE WITH YOUR OWN FONT! */
-@import url("https://fonts.googleapis.com/css?family=Roboto&display=swap");
+@import url('https://fonts.googleapis.com/css2?family=Anuphan:wght@100..700&family=Hammersmith+One&display=swap');
+
 
 :root {
   --primary: #FB7B68;
@@ -40,7 +40,7 @@
 body {
   margin: 0;
   padding: 0;
-  font-family: "Roboto", sans-serif;
+  font-family: "Anuphan", sans-serif;
   font-weight: 300;
 }
 
@@ -60,6 +60,9 @@ form {
   background-color: var(--tertiary);
 }
 
+.rounded-corners{
+  border-radius: 30px;
+}
 .u-flex {
   display: flex;
 }

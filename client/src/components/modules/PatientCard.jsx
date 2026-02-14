@@ -4,7 +4,7 @@ const PatientCard = ({ patient }) => {
   const getUrgencyColor = (urgency) => {
     switch (urgency.toLowerCase()) {
       case 'urgent':
-        return 'bg-red-500 hover:bg-red-600';
+        return 'bg-[#EB5757] hover:bg-[#d94c4c]';
       case 'minimal':
         return 'bg-green-500 hover:bg-green-600';
       case 'monitor':
@@ -15,65 +15,63 @@ const PatientCard = ({ patient }) => {
   };
 
   return (
-    <div className="bg-secondary rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 hover:scale-[1.02]">
+    <div className="bg-secondary rounded-corners p-8 transition-all duration-300">
       {/* Patient Avatar */}
       <div className="flex justify-center mb-6">
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full blur-md opacity-40"></div>
-          <img
-            src={patient.avatar}
-            alt={patient.name}
-            className="relative w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
-          />
-        </div>
+        <img
+          src={patient.avatar}
+          alt={patient.name}
+          className="w-32 h-32 rounded-full object-cover shadow-lg"
+        />
       </div>
 
       {/* Patient Name and Date */}
       <div className="text-center mb-6">
         <h3 className="text-2xl font-bold text-gray-900">
           {patient.name}
+          {patient.dischargeDate && !patient.showDischargeDate && (
+            <span className="font-medium"> - {patient.dischargeDate}</span>
+          )}
         </h3>
-        {patient.dischargeDate && !patient.showDischargeDate && (
-          <p className="text-sm text-gray-600 mt-1">
-            {patient.dischargeDate}
-          </p>
-        )}
       </div>
 
-      {/* Patient Details */}
-      <div className="space-y-4 mb-8">
-        {/* Operation */}
-        <div className="bg-white bg-opacity-50 rounded-xl p-4">
-          <h4 className="font-bold text-gray-900 text-sm mb-1.5">Operation</h4>
-          <p className="text-gray-800 font-medium">{patient.operation}</p>
+      {/* Two-column: Operation and Recent Symptoms */}
+      <div className="grid grid-cols-2 gap-6 mb-6">
+        <div>
+          <h4 className="font-bold text-gray-900 text-xl mb-1">Operation</h4>
+          <p className="text-gray-800 text-xl">{patient.operation}</p>
         </div>
-
-        {/* Recent Symptoms */}
-        <div className="bg-white bg-opacity-50 rounded-xl p-4">
-          <h4 className="font-bold text-gray-900 text-sm mb-1.5">Recent Symptoms</h4>
-          <p className="text-gray-800 font-medium">{patient.symptoms}</p>
+        <div>
+          <h4 className="font-bold text-gray-900 text-xl mb-1">Recent Symptoms</h4>
+          <p className="text-gray-800 text-xl">{patient.symptoms}</p>
         </div>
-
-        {/* AI Summary (if present) */}
-        {patient.aiSummary && (
-          <div className="bg-white bg-opacity-50 rounded-xl p-4">
-            <h4 className="font-bold text-gray-900 text-sm mb-1.5">AI Summary</h4>
-            <p className="text-gray-800 text-sm leading-relaxed">{patient.aiSummary}</p>
-          </div>
-        )}
-
       </div>
+
+      {/* Discharge Date (if shown separately) */}
+      {patient.showDischargeDate && patient.dischargeDate && (
+        <div className="mb-6">
+          <h4 className="font-bold text-gray-900 text-xl mb-1">Discharge Date</h4>
+          <p className="text-gray-800 text-xl">{patient.dischargeDate}</p>
+        </div>
+      )}
+
+      {patient.aiSummary && (
+        <div className="mb-8">
+          <h4 className="font-bold text-gray-900 text-xl mb-1.5">AI Summary</h4>
+          <p className="text-gray-800 text-xl leading-relaxed">{patient.aiSummary}</p>
+        </div>
+      )}
 
       {/* Action Buttons */}
-      <div className="flex gap-3 justify-center">
+      <div className="flex gap-4 justify-center">
         <button
           className={`${getUrgencyColor(
             patient.urgency
-          )} text-white font-bold py-3 px-7 rounded-full transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105`}
+          )} text-white font-bold py-3 px-6 rounded-xl transition-all duration-200`}
         >
           {patient.urgency}
         </button>
-        <button className="bg-tertiary hover:bg-black text-white font-bold py-3 px-7 rounded-full transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105">
+        <button className="bg-[#55454F] hover:bg-[#453840] text-white font-bold py-3 px-6 rounded-xl transition-all duration-200">
           Contact
         </button>
       </div>
