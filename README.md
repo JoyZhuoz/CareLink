@@ -9,9 +9,7 @@ All teammates will need (explained in weblab.is/hw0)
 - Visual Studio Code (or another code editor)
 - the Prettier VSCode extension
 
-Also, all of you will need to go through the MongoDB Atlas setup (https://bit.ly/mongo-setup).
-
-Additionally for authentication, one of you will need to obtain a CLIENT_ID, instructions are at https://bit.ly/gauth-mit.
+This project is currently configured for a no-auth hackathon demo and does not require MongoDB.
 
 ## Downloading these files
 
@@ -47,12 +45,10 @@ Now the rest of your teammates can pull all these files with a 'git pull'!
 
 Post on Piazza if you run into any issues
 
-## What you need to change in the skeleton
+## What you need to configure
 
-- Change the Frontend CLIENT_ID (Skeleton.js) to your team's CLIENT_ID (obtain this at https://bit.ly/gauth-mit)
-- Change the Server CLIENT_ID to the same CLIENT_ID (auth.js)
-- Change the Database SRV (mongoConnectionURL) for Atlas (server.js). You got this in the MongoDB setup. remember to replace <password> and <dbname> (should be no < or > in your SRV) (From: https://bit.ly/mongo-setup)
-- Change the Database Name for MongoDB to whatever you put in the SRV to replace <dbname> (server.js)
+- Set Twilio environment variables in `.env` based on `.env.example`.
+- Set `PUBLIC_BASE_URL` so Twilio callbacks can reach your server.
 - (Optional) Add a favicon to your website at the path client/dist/favicon.ico
 - (Optional) Update website title in client/dist/index.html
 - (Optional) Update this README file ;)

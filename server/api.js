@@ -9,34 +9,22 @@
 
 const express = require("express");
 
-// import models so we can interact with the database
-const User = require("./models/user");
-
-// import authentication library
-const auth = require("./auth");
-
 // api endpoints: all these paths will be prefixed with "/api/"
 const router = express.Router();
 
 //initialize socket
 const socketManager = require("./server-socket");
 
-router.post("/login", auth.login);
-router.post("/logout", auth.logout);
-router.get("/whoami", (req, res) => {
-  if (!req.user) {
-    // not logged in
-    return res.send({});
+router.post("/initsocket", (req, res) => {
+  const socket = socketManager.getSocketFromSocketID(req.body.socketid);
+  if (socket) {
+    socketManager.addUser({ _id: "dashboard-demo" }, socket);
   }
-
-  res.send(req.user);
+  res.send({});
 });
 
-router.post("/initsocket", (req, res) => {
-  // do nothing if user not logged in
-  if (req.user)
-    socketManager.addUser(req.user, socketManager.getSocketFromSocketID(req.body.socketid));
-  res.send({});
+router.get("/health", (req, res) => {
+  res.send({ ok: true });
 });
 
 // |------------------------------|
