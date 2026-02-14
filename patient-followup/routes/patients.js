@@ -34,15 +34,17 @@ router.post("/bulk", async (req, res) => {
   }
 });
 
-// List all patients
-router.get("/all", async (req, res) => {
+// List all patients (GET /api/patients, GET /api/patients/, GET /api/patients/all)
+const listAll = async (req, res) => {
   try {
     const patients = await patientService.getAllPatients();
     res.json({ count: patients.length, patients });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
-});
+};
+router.get("/all", listAll);  // must be before /:id so "all" isn't treated as id
+router.get(["/", ""], listAll);
 
 // Get patients needing follow-up
 router.get("/followup", async (req, res) => {

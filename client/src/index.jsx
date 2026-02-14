@@ -15,13 +15,13 @@ import {
 
 const router = createBrowserRouter(
   createRoutesFromElements(
-    <Route errorElement={<NotFound />} element={<App />}>
-      {/* All main pages share the sidebar layout */}
-      <Route element={<SidebarLayout />}>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/chatbot" element={<Chatbot />} />
+    <Route element={<App />} errorElement={<NotFound />}>
+      <Route path="/" element={<SidebarLayout />}>
+        <Route index element={<Dashboard />} />
+        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="chatbot" element={<Chatbot />} />
       </Route>
+      <Route path="*" element={<NotFound />} />
     </Route>
   )
 )

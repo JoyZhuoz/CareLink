@@ -13,6 +13,41 @@ function formatCountdown(isoDate) {
 }
 
 const PatientCard = ({ patient, onSelect }) => {
+  const [calling, setCalling] = useState(false);
+  const [callStatus, setCallStatus] = useState(null); // "success" | "error" | null
+  const [liveCountdown, setLiveCountdown] = useState("");
+
+  const nextCallDate = patient.nextCallDate || patient.next_call_date;
+  useEffect(() => {
+    if (!nextCallDate) {
+      setLiveCountdown("Scheduled");
+      return;
+    }
+    const tick = () => setLiveCountdown(formatCountdown(nextCallDate));
+    tick();
+    const id = setInterval(tick, 60 * 1000);
+    return () => clearInterval(id);
+  }, [nextCallDate]);
+
+  const countdown = liveCountdown || (nextCallDate ? formatCountdown(nextCallDate) : "Scheduled");
+
+  const handleCallNow = async (e) => {
+    e.stopPropagation();
+    if (!patient.patient_id || calling) return;
+    setCalling(true);
+    setCallStatus(null);
+    try {
+      const res = await fetch(`/api/twilio/call/${patient.patient_id}`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok) setCallStatus("success");
+      else setCallStatus("error");
+    } catch {
+      setCallStatus("error");
+    } finally {
+      setCalling(false);
+    }
+  };
+
   const getUrgencyColor = (urgency) => {
     switch (urgency?.toLowerCase()) {
       case "urgent":
@@ -103,7 +138,7 @@ const PatientCard = ({ patient, onSelect }) => {
                 d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z"
               />
             </svg>
-            <span>{isPastDue ? "Scheduled" : `Call in ${countdown}`}</span>
+            <span>{countdown === "Scheduled" || countdown === "Overdue" ? "Scheduled" : `Call in ${countdown}`}</span>
           </div>
         )}
         <button

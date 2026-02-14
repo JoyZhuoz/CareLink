@@ -4,12 +4,8 @@ import CallTranscript from "./CallTranscript";
 const CallSummary = ({ patient, onBack }) => {
   const callHistory = patient.call_history || [];
 
-  // Sort calls by date descending (most recent first)
-  const sortedCalls = [...callHistory].sort((a, b) => {
-    const dateA = a.fields?.call_date?.[0] || "";
-    const dateB = b.fields?.call_date?.[0] || "";
-    return new Date(dateB) - new Date(dateA);
-  });
+  const getCallDate = (c) => c.call_date || c.fields?.call_date?.[0] || "";
+  const sortedCalls = [...callHistory].sort((a, b) => new Date(getCallDate(b)) - new Date(getCallDate(a)));
 
   return (
     <div>
