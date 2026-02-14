@@ -46,24 +46,71 @@ app.use((req, _res, next) => {
 app.use("/api/patients", patientRoutes);
 app.use("/api/twilio", twilioRoutes);
 
-// ── Chat route (Agent Builder) ───────────────────────────────────────────────
+// ── Chat route (SSE streaming with step progress) ────────────────────────────
 app.post("/api/chat", async (req, res) => {
+  const { message, conversation_id } = req.body;
+  if (!message) {
+    return res.status(400).json({ error: "Provide 'message'" });
+  }
+  if (!callAgent.isConfigured()) {
+    return res.status(503).json({
+      error: "AI service not configured. Set KIBANA and ELASTICSEARCH_API_KEY in .env.",
+    });
+  }
+
+  // Set up SSE
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+  });
+
+  const send = (event, data) => {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+
+  // Send predictive steps with staggered timing
+  const steps = callAgent.AGENT_STEPS;
+  for (let i = 0; i < steps.length - 1; i++) {
+    send("step", { id: steps[i].id, label: steps[i].label, status: "active" });
+    await new Promise((r) => setTimeout(r, 600));
+    send("step", { id: steps[i].id, label: steps[i].label, status: "done" });
+  }
+  // Last step stays "active" until API responds
+  send("step", {
+    id: steps[steps.length - 1].id,
+    label: steps[steps.length - 1].label,
+    status: "active",
+  });
+
   try {
-    const { message, conversation_id } = req.body;
-    if (!message) {
-      return res.status(400).json({ error: "Provide 'message'" });
-    }
-    if (!callAgent.isConfigured()) {
-      return res.status(503).json({
-        error: "AI service not configured. Set KIBANA and ELASTICSEARCH_API_KEY in .env.",
-      });
-    }
     const result = await callAgent.converse(message, conversation_id);
-    res.json({ conversation_id: result.conversation_id, response: result.response });
+
+    // Send any real tool-call steps extracted from the response
+    if (result.steps.length > 0) {
+      for (const step of result.steps) {
+        send("step", { id: step.id, label: step.label, detail: step.detail, status: "done" });
+      }
+    }
+
+    // Mark last predictive step as done
+    send("step", {
+      id: steps[steps.length - 1].id,
+      label: steps[steps.length - 1].label,
+      status: "done",
+    });
+
+    // Send final response
+    send("done", {
+      conversation_id: result.conversation_id,
+      response: result.response,
+    });
   } catch (err) {
     console.error("Chat error:", err);
-    res.status(500).json({ error: err.message });
+    send("error", { error: err.message });
   }
+
+  res.end();
 });
 
 // Manual follow-up trigger
