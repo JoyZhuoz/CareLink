@@ -88,56 +88,59 @@ const PatientCard = ({ patient, onSelect }) => {
 
   return (
     <div
-      className="bg-secondary-50 shadow-md rounded-corners p-8 transition-all duration-300 cursor-pointer hover:-translate-y-1 hover:shadow-lg"
+      className="bg-secondary-50 shadow-md rounded-corners p-8 transition-all duration-300 cursor-pointer hover:-translate-y-1 hover:shadow-lg flex flex-col h-full min-h-0"
       onClick={() => onSelect && onSelect(patient)}
     >
-      {/* Patient Avatar */}
-      <div className="flex justify-center mb-6">
-        <img
-          src={patient.avatar}
-          alt={patient.name}
-          className="w-32 h-32 rounded-full object-cover shadow-lg"
-        />
-      </div>
-
-      {/* Patient Name + urgency dot, then date underneath */}
-      <div className="text-center mb-6">
-        <div className="flex items-center justify-center gap-2">
-          <h3 className="text-2xl font-bold text-gray-900">{patient.name}</h3>
-          <span
-            className={`inline-block w-3 h-3 rounded-full shrink-0 ${getUrgencyColor(patient.urgency)}`}
-            title={patient.urgency || "Urgency"}
-            aria-hidden
+      {/* Content above buttons — grows to push action area to bottom */}
+      <div className="flex-1 min-h-0 flex flex-col">
+        {/* Patient Avatar */}
+        <div className="flex justify-center mb-6">
+          <img
+            src={patient.avatar}
+            alt={patient.name}
+            className="w-32 h-32 rounded-full object-cover shadow-lg"
           />
         </div>
-        {patient.dischargeDate && (
-          <p className="text-gray-700 font-medium mt-1">{patient.dischargeDate}</p>
+
+        {/* Patient Name + urgency dot, then date underneath */}
+        <div className="text-center mb-6">
+          <div className="flex items-center justify-center gap-2">
+            <h3 className="text-2xl font-bold text-gray-900">{patient.name}</h3>
+            <span
+              className={`inline-block w-3 h-3 rounded-full shrink-0 ${getUrgencyColor(patient.urgency)}`}
+              title={patient.urgency || "Urgency"}
+              aria-hidden
+            />
+          </div>
+          {patient.dischargeDate && (
+            <p className="text-gray-700 font-medium mt-1">{patient.dischargeDate}</p>
+          )}
+        </div>
+
+        {/* Two-column: Operation and Recent Symptoms */}
+        <div className="grid grid-cols-2 gap-6 mb-6">
+          <div>
+            <h4 className="font-bold text-gray-900 text-xl mb-1">Operation</h4>
+            <p className="text-gray-800 text-xl">{patient.operation}</p>
+          </div>
+          <div>
+            <h4 className="font-bold text-gray-900 text-xl mb-1">Recent Symptoms</h4>
+            <p className="text-gray-800 text-xl">
+              {Array.isArray(patient.symptoms) ? patient.symptoms.join(", ") : patient.symptoms}
+            </p>
+          </div>
+        </div>
+
+        {/* AI Summary (only after a call) */}
+        {patient.aiSummary && (
+          <div className="mb-8">
+            <h4 className="font-bold text-gray-900 text-xl mb-1.5">AI Summary</h4>
+            <p className="text-gray-800 text-xl leading-relaxed">{patient.aiSummary}</p>
+          </div>
         )}
       </div>
 
-      {/* Two-column: Operation and Recent Symptoms */}
-      <div className="grid grid-cols-2 gap-6 mb-6">
-        <div>
-          <h4 className="font-bold text-gray-900 text-xl mb-1">Operation</h4>
-          <p className="text-gray-800 text-xl">{patient.operation}</p>
-        </div>
-        <div>
-          <h4 className="font-bold text-gray-900 text-xl mb-1">Recent Symptoms</h4>
-          <p className="text-gray-800 text-xl">
-            {Array.isArray(patient.symptoms) ? patient.symptoms.join(", ") : patient.symptoms}
-          </p>
-        </div>
-      </div>
-
-      {/* AI Summary (only after a call) */}
-      {patient.aiSummary && (
-        <div className="mb-8">
-          <h4 className="font-bold text-gray-900 text-xl mb-1.5">AI Summary</h4>
-          <p className="text-gray-800 text-xl leading-relaxed">{patient.aiSummary}</p>
-        </div>
-      )}
-
-      {/* Action area: "Call complete!" tag OR countdown */}
+      {/* Action area: "Call complete!" tag OR countdown — aligned to bottom */}
       <div className="flex gap-4 justify-center items-center flex-wrap">
         {patient.hasBeenCalled ? (
           <span className="inline-flex items-center gap-1.5 font-semibold py-2 px-4 rounded-lg bg-green-100 text-green-800 border border-green-300">
@@ -168,6 +171,7 @@ const PatientCard = ({ patient, onSelect }) => {
             <span>{countdown === "Scheduled" || countdown === "Overdue" ? "Scheduled" : `Call in ${countdown}`}</span>
           </div>
         )}
+        
         <button
           type="button"
           onClick={handleOpenEmail}

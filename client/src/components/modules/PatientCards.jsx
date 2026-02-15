@@ -13,7 +13,7 @@ const PatientCards = ({ patients, onSelect }) => {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10 items-stretch">
       {patients.map((patient) => (
         <PatientCard key={patient.id} patient={patient} onSelect={onSelect} />
       ))}
