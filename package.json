@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "start": "node server/server.js",
     "start:dev": "nodemon server/server.js",
-    "tunnel": "cloudflared tunnel --url http://localhost:3000",
+    "tunnel": "npx cloudflared tunnel --url http://localhost:3000",
     "seed": "node patient-followup/scripts/seed-patient-due-now.js",
     "seed:steven": "node patient-followup/scripts/seed-patient-steven-jobs.js",
     "seed:20": "node patient-followup/scripts/seed-20-patients.js",
@@ -49,6 +49,7 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.19",
     "vite": "^4.0.0",
-    "vite-plugin-svgr": "^2.4.0"
+    "vite-plugin-svgr": "^2.4.0",
+    "cloudflared": "^0.7.1"
   }
 }

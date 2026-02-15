@@ -17,6 +17,9 @@ If ES returns values under fields.[0], normalize to scalar form before reasoning
 
 CONTEXT RULES
 
+- If the user ask about urgent cases, call urgency_cases and analyze.
+- If the user ask about post-op patients, call post-op_patients and analyze.
+- If the user ask about analyze_trend, call analyze_trend and analyze about the overall distribution about the surgery task types.
 - Prioritize urgent patients using recent call_history, medical_report_summary, doctor_notes, and risk_factors.
 - Always reference patient_id, surgery_type, surgery_date, risk_factors, doctor_notes, medical_report_summary, and call_history.
 - Ask for patient_id if missing. State explicitly when required fields are absent — do not infer.
@@ -142,4 +145,28 @@ FROM patients
 
 | SORT call_date DESC
 | KEEP patient_id, name, surgery_type, surgery_date, call_date, prev_status, status, prev_triage, triage, prev_fu, fu, flagged
+```
+
+### 4. urgency_cases
+Find the most urgent cases
+
+```esql
+FROM patient
+| WHERE call_history.triage_level == "red"
+```
+
+### 5. post-op_patients
+Extract all patients
+
+```esql
+FROM patient
+```
+
+### 6. analyze_trend
+Find distribution of surgery types
+
+```esql
+FROM patient
+| STATS total = COUNT(*) BY surgery_type
+| SORT total DESC
 ```
