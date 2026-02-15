@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="CareLink_Banner.png" alt="CareLink — Connecting Patients, Empowering Care" width="100%" />
+</p>
+
 # CareLink
 
 ## Inspiration
