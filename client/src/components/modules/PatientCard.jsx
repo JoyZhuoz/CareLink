@@ -110,7 +110,7 @@ const PatientCard = ({ patient, onSelect }) => {
         {/* Patient Name + urgency dot, then date underneath */}
         <div className="text-center mb-6">
           <div className="flex items-center justify-center gap-2">
-            <h3 className="text-3xl font-bold text-gray-900">{patient.name}</h3>
+            <h3 className="text-xl font-bold text-gray-900">{patient.name}</h3>
             <span
               className={`inline-block w-3 h-3 rounded-full shrink-0 ${getUrgencyColor(patient.urgency)}`}
               title={patient.urgency || "Urgency"}
