@@ -20,6 +20,8 @@ const PatientCard = ({ patient, onSelect, index = 0 }) => {
   const [showEmailPopup, setShowEmailPopup] = useState(false);
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSendError, setEmailSendError] = useState(null);
   const [avatarFailed, setAvatarFailed] = useState(false);
 
   const nextCallDate = patient.nextCallDate || patient.next_call_date;
@@ -45,17 +47,41 @@ const PatientCard = ({ patient, onSelect, index = 0 }) => {
     e.stopPropagation();
     setEmailSubject("");
     setEmailBody("");
+    setEmailSendError(null);
     setShowEmailPopup(true);
   };
 
   const handleCloseEmailPopup = (e) => {
     if (e) e.stopPropagation();
     setShowEmailPopup(false);
+    setEmailSendError(null);
   };
 
-  const handleSendEmail = (e) => {
+  const handleSendEmail = async (e) => {
     e.stopPropagation();
-    setShowEmailPopup(false);
+    setEmailSendError(null);
+    setEmailSending(true);
+    try {
+      const res = await fetch("/api/email/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: "margo.joe708@gmail.com",
+          subject: emailSubject,
+          text: emailBody,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setShowEmailPopup(false);
+      } else {
+        setEmailSendError(data.error || `Failed to send (${res.status})`);
+      }
+    } catch (err) {
+      setEmailSendError(err.message || "Network error");
+    } finally {
+      setEmailSending(false);
+    }
   };
 
   const handleCallNow = async (e) => {
@@ -304,20 +330,27 @@ const PatientCard = ({ patient, onSelect, index = 0 }) => {
                   onClick={(e) => e.stopPropagation()}
                 />
               </div>
+              {emailSendError && (
+                <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">
+                  {emailSendError}
+                </p>
+              )}
               <div className="flex gap-3 justify-end pt-2">
                 <button
                   type="button"
                   onClick={handleCloseEmailPopup}
-                  className="px-4 py-2 text-gray-700 font-medium rounded-lg border border-gray-300 hover:bg-gray-100"
+                  disabled={emailSending}
+                  className="px-4 py-2 text-gray-700 font-medium rounded-lg border border-gray-300 hover:bg-gray-100 disabled:opacity-60"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleSendEmail}
-                  className="px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700"
+                  disabled={emailSending}
+                  className="px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-60"
                 >
-                  Send
+                  {emailSending ? "Sending…" : "Send"}
                 </button>
               </div>
             </div>
