@@ -13,6 +13,9 @@
     "tunnel": "cloudflared tunnel --url http://localhost:3000",
     "seed": "node patient-followup/scripts/seed-patient-due-now.js",
     "seed:steven": "node patient-followup/scripts/seed-patient-steven-jobs.js",
+    "seed:20": "node patient-followup/scripts/seed-20-patients.js",
+    "seed:10multi": "node patient-followup/scripts/seed-10-multi-call-patients.js",
+    "seed:50": "node patient-followup/scripts/seed-50-patients.js",
     "test:call": "curl -s -X POST http://localhost:3000/api/twilio/call/seed-due-now | python3 -m json.tool"
   },
   "engines": {

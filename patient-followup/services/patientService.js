@@ -24,6 +24,7 @@ async function createIndex() {
             surgery_date: { type: 'date' },
             discharge_date: { type: 'date' },
             risk_factors: { type: 'keyword' },
+            current_triage: { type: 'keyword' },
             expected_response_embedding: { type: 'dense_vector', dims: 384 },
             call_history: { type: 'nested' }
           }
@@ -41,11 +42,20 @@ async function createIndex() {
   }
 }
 
+function getCurrentTriage(patient) {
+  const history = patient.call_history;
+  if (!Array.isArray(history) || history.length === 0) return null;
+  const last = history[history.length - 1];
+  return last?.triage_level || null;
+}
+
 async function addPatient(patient) {
+  const doc = { ...patient };
+  doc.current_triage = getCurrentTriage(patient);
   return await esClient.index({
     index: INDEX_NAME,
     id: patient.patient_id,
-    document: patient
+    document: doc
   });
 }
 
@@ -100,14 +110,42 @@ async function getPatientById(patientId) {
 }
 
 async function addCallToHistory(patientId, callData) {
+  const triageLevel = callData?.triage_level || null;
   return await esClient.update({
     index: INDEX_NAME,
     id: patientId,
     script: {
-      source: 'ctx._source.call_history.add(params.call)',
-      params: { call: callData }
+      source: 'ctx._source.call_history.add(params.call); ctx._source.current_triage = params.triage_level;',
+      params: { call: callData, triage_level: triageLevel }
     }
   });
+}
+
+/**
+ * Backfill current_triage for all patients (e.g. after adding the field to the mapping).
+ * Sets current_triage from the latest call in call_history.
+ */
+async function backfillCurrentTriage() {
+  const response = await esClient.search({
+    index: INDEX_NAME,
+    query: { match_all: {} },
+    size: 10000,
+  });
+  const updates = [];
+  for (const hit of response.hits.hits) {
+    const triage = getCurrentTriage(hit._source);
+    if (triage != null && hit._source.current_triage !== triage) {
+      updates.push(
+        esClient.update({
+          index: INDEX_NAME,
+          id: hit._id,
+          doc: { current_triage: triage },
+        })
+      );
+    }
+  }
+  if (updates.length) await Promise.all(updates);
+  return { updated: updates.length, total: response.hits.hits.length };
 }
 
 export {
@@ -117,5 +155,6 @@ export {
   getAllPatients,
   getPatientsForFollowup,
   getPatientById,
-  addCallToHistory
+  addCallToHistory,
+  backfillCurrentTriage,
 };
