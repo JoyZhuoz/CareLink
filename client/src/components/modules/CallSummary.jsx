@@ -20,12 +20,13 @@ const CallSummary = ({ patient, onBack }) => {
         </svg>
       </button>
 
-      {/* Patient Header */}
+      {/* Patient Header — stock photo with initials fallback on load error */}
       <div className="flex items-center gap-4 mb-8">
         <img
-          src={patient.avatar}
+          src={avatarFailed && patient.avatarFallback ? patient.avatarFallback : patient.avatar}
           alt={patient.name}
           className="w-16 h-16 rounded-full object-cover shadow-md"
+          onError={() => setAvatarFailed(true)}
         />
         <div className="flex items-center gap-3">
           <h2 className="text-2xl font-bold" style={{ color: "var(--tertiary)" }}>

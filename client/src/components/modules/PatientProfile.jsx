@@ -52,12 +52,13 @@ const PatientProfile = ({ patient, onBack, onViewSummary, onContact }) => {
 
       {/* Profile Content */}
       <div className="max-w-3xl mx-auto">
-        {/* Avatar */}
+        {/* Avatar — stock photo with initials fallback on load error */}
         <div className="flex justify-center mb-6">
           <img
-            src={patient.avatar}
+            src={avatarFailed && patient.avatarFallback ? patient.avatarFallback : patient.avatar}
             alt={patient.name}
             className="w-40 h-40 rounded-full object-cover shadow-lg"
+            onError={() => setAvatarFailed(true)}
           />
         </div>
 

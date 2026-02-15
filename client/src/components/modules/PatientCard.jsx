@@ -20,6 +20,7 @@ const PatientCard = ({ patient, onSelect, index = 0 }) => {
   const [showEmailPopup, setShowEmailPopup] = useState(false);
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
+  const [avatarFailed, setAvatarFailed] = useState(false);
 
   const nextCallDate = patient.nextCallDate || patient.next_call_date;
   useEffect(() => {
@@ -98,12 +99,13 @@ const PatientCard = ({ patient, onSelect, index = 0 }) => {
       onClick={() => onSelect && onSelect(patient)}
     >
       <div className="flex-1 min-h-0 flex flex-col p-6">
-        {/* avatar + name, urgency, date */}
+        {/* avatar + name, urgency, date — stock photo with initials fallback on load error */}
         <div className="flex items-start gap-4 mb-5">
           <img
-            src={patient.avatar}
+            src={avatarFailed && patient.avatarFallback ? patient.avatarFallback : patient.avatar}
             alt=""
-            className="w-14 h-14 rounded-xl object-cover shadow shrink-0"
+            className="w-14 h-14 rounded-xl object-cover ring-2 ring-white/80 shadow shrink-0"
+            onError={() => setAvatarFailed(true)}
           />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
