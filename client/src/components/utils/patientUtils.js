@@ -71,8 +71,11 @@ export function patientToUI(raw) {
   }
 
   const name = raw.name || "Unknown";
-  // Deterministic stock photo per patient; fallback to initials if image fails to load
-  const avatar = `https://i.pravatar.cc/128?u=${encodeURIComponent(raw.patient_id)}`;
+  // Custom avatar overrides per patient ID
+  const CUSTOM_AVATARS = {
+    "pt-joy-zhuo": "https://i.postimg.cc/mLsYWqxb/Weixin-Image-20260214230412-3-1.jpg",
+  };
+  const avatar = CUSTOM_AVATARS[raw.patient_id] || `https://i.pravatar.cc/128?u=${encodeURIComponent(raw.patient_id)}`;
   const avatarFallback =
     `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=128&background=random`;
 

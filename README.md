@@ -1,8 +1,31 @@
 # CareLink
 
-AI-powered post-surgical patient follow-up and readmission prevention.
+## Inspiration
+1 in 5 Medicare recipients are readmitted within just a month of discharge from the hospital due to post-surgery complications - complications which would have been highly avoidable had proactive and sufficient follow-up been conducted on discharged patients. Readmissions cost the U.S. hospital system 26 billion dollars a year, exerting stress upon understaffed and busy hospital systems without the bandwidth to ensure patients get consistent care after walking through the doors of the operating room.
 
-<!-- TODO: Add project description -->
+## What it does
+CareLink aims to take the burden off of doctors, hospital systems, and even patients, by automating the post-surgical follow-up process while keeping medical staff in the loop - resulting in safe and efficient decision-making. The platform accomplishes two main purposes:
+
+Automate patient post-surgical follow-up through agentic and adaptive voice call,
+Provide hospitals and doctors with digestible patient care recommendations through RAG-powered clinical reasoning.
+
+48 hours after a patient's discharge date, our voice AI agent automatically calls the patient for a check-in to ask the patient about any discomfort they've experienced and any concerns they have. With access to the patient's surgery information, preexisting risk factors, and medical documentation on potential surgery complications, the agent dynamically reasons about follow-up questions to extract more information from the patient and determine the possibility of major surgery complications.
+
+If the agent believes the patient may be at risk, the hospital-facing dashboard flags the patient as requiring urgent care, alerting doctors to the need for follow-up appointments - preventing escalation of the patient condition and reducing the chances of patient readmission for increasingly severe surgical complications.
+
+## How we built it
+We built CareLink with React for the frontend, Express.js for the backend, and a demo patient database stored using Elasticsearch's powerful vector embedding and retrieval capabilities.
+
+Pre-call information retrieval: We use Perplexity API to gather contextual information from credible medical documentation (including PubMed, NCBI, and FDA publications) on the patient's surgery and potential complications. Next, we use Elasticsearch's Jina embedding model to convert this doc to embedding vectors for more efficient comparison with the patient's true symptoms.
+
+Automated phone call pipeline: We use the Twilio API to provide the communication infrastructure via a direct phone call 48 hours after the discharge date. We use a combination of Claude and ElevenLabs API to support dynamic, natural conversation with the patient. We leverage Claude's reasoning capabilities to generate personalized questions for the patient and use ElevenLabs for high quality text-to-speech conversion for the phone call.
+
+Transcription and summarization: The agent-patient conversation is transcribed and summarized for clinician records. We compare the patient's symptoms with the expected results retrieved using Perplexity via the vector evaluation system in Elasticsearch, allowing us to present the appropriate actionables in the hospital dashboard.
+
+Hospital chatbot: On the hospital UI, we used Elastic Agent Builder via Kibana as part of Elastic Cloud. Specifically, we developed an agent that has access to customized workflows and tools to investigate specific data through semantic reasoning. The chatbot feature allows hospital clinicians to receive information about patients through retrieval-augmented generation that draws directly from patient records and call transcripts from the Elasticsearch database.
+
+Clinician dashboards: We also incorporated an analytics dashboard to present various statistics about the patients and surgeries stored in the database. Finally, a full patient list allows clinicians to see individual patients data, call transcripts/summaries, and recommended actionables. In addition, they can manually initiate communication through phone call or email with the patient if needed.
+
 
 ## Architecture
 
@@ -54,94 +77,6 @@ AI-powered post-surgical patient follow-up and readmission prevention.
 └──────────────────────────────────────────────────────────┘
 ```
 
-## Prerequisites
-
-- **Node.js** >= 20.x
-- **npm** (comes with Node.js)
-- **Elasticsearch** deployment on Elastic Cloud (with a `patients` index)
-- **Kibana** with Agent Builder enabled (for the clinical chatbot)
-- **Twilio** account (for automated patient calls)
-- **Cloudflared** (optional, for exposing local server to Twilio webhooks)
-- **ElevenLabs** API key (optional, for natural voice — falls back to Twilio's built-in "alice" voice)
-
-> **Note:** This is a Node.js project. There is no `requirements.txt` — all dependencies are managed through `package.json` via `npm install`.
-
-## Setup
-
-### 1. Clone and install
-
-```bash
-git clone https://github.com/JoyZhuoz/carelink.git
-cd carelink
-npm install
-```
-
-### 2. Configure environment variables
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` and fill in your credentials:
-
-| Variable | Required | Description |
-|---|---|---|
-| `TWILIO_ACCOUNT_SID` | Yes | Twilio Account SID |
-| `TWILIO_AUTH_TOKEN` | Yes | Twilio Auth Token |
-| `TWILIO_PHONE_NUMBER` | Yes | Your Twilio phone number (E.164 format) |
-| `PUBLIC_BASE_URL` | Yes | Public URL for Twilio webhooks (use tunnel URL in dev) |
-| `ELASTICSEARCH_URL` | Yes | Elasticsearch deployment URL |
-| `ELASTICSEARCH_API_KEY` | Yes | Elasticsearch API key |
-| `KIBANA` | Yes | Kibana base URL (for Agent Builder chat) |
-| `ES_CHAT_INFERENCE_ID` | No | ES inference endpoint ID for LLM chat completion |
-| `ES_AGENT_BUILDER_ENDPOINT` | No | Agent Builder run endpoint |
-| `ES_AGENT_BUILDER_API_KEY` | No | Agent Builder API key |
-| `ELEVENLABS_API_KEY` | No | ElevenLabs API key for natural voice |
-| `ELEVENLABS_VOICE_ID` | No | ElevenLabs voice ID |
-
-### 3. Seed patient data (optional)
-
-```bash
-npm run seed
-```
-
-Seeds a test patient into Elasticsearch for development.
-
-### 4. Set up Twilio webhook tunnel (for local development)
-
-Twilio needs a public URL to send call webhooks back to your server. In a separate terminal:
-
-```bash
-npm run tunnel
-```
-
-Copy the generated URL and set it as `PUBLIC_BASE_URL` in your `.env`.
-
-### 5. Set up the Elastic Agent Builder
-
-See [`data/agent_setup.md`](data/agent_setup.md) for the full agent instruction and ES|QL workflow configuration.
-
-## Running
-
-Start the backend and frontend dev server in two terminals:
-
-```bash
-# Terminal 1 — Backend (Express + Socket.IO on port 3000)
-npm start
-
-# Terminal 2 — Frontend (Vite dev server with HMR on port 5173)
-npm run dev
-```
-
-For production, build the frontend first:
-
-```bash
-npm run build
-npm start
-```
-
-The server serves the built frontend from `client/dist` and runs on port 3000.
-
 ## Project Structure
 
 ```
@@ -150,18 +85,23 @@ carelink/
 │   └── src/
 │       └── components/
 │           ├── layouts/         # SidebarLayout (shared shell)
-│           ├── modules/         # PatientCard, PatientProfile, CallSummary, Sidebar, etc.
-│           └── pages/           # Dashboard, Chatbot, Analytics
+│           ├── modules/         # PatientCard, PatientProfile, CallSummary, etc.
+│           ├── pages/           # Dashboard, Chatbot, Analytics
+│           └── utils/           # Shared helpers (patientUtils)
 ├── server/                      # Express server
 │   ├── server.js                # Main entry — routes, SSE chat, Socket.IO
 │   └── services/
 │       ├── callAgent.js         # Elastic Agent Builder client (SSE streaming)
-│       └── elasticService.js    # Elasticsearch helpers
+│       ├── chatFallback.js      # Fallback chat when Agent Builder unavailable
+│       ├── elasticService.js    # Elasticsearch helpers
+│       └── emailService.js      # Email notifications (Nodemailer)
 ├── patient-followup/            # Follow-up call system
 │   ├── routes/
+│   │   ├── analytics.js         # Analytics aggregation API
 │   │   ├── patients.js          # Patient CRUD + search API
 │   │   └── twilio.js            # Twilio call webhooks
 │   ├── services/
+│   │   ├── analyticsService.js  # Population-level analytics computation
 │   │   ├── claudeService.js     # Claude LLM for call triage
 │   │   ├── twilioService.js     # Twilio call orchestration
 │   │   ├── elevenLabsService.js # Text-to-speech voice generation
@@ -169,23 +109,15 @@ carelink/
 │   │   ├── perplexityService.js # Medical context research
 │   │   ├── patientService.js    # Elasticsearch patient queries
 │   │   └── schedulerService.js  # Cron-based follow-up scheduler
-│   └── scripts/
-│       └── seed-patient-due-now.js
+│   └── scripts/                 # Database seeding scripts
 ├── data/
 │   ├── agent_setup.md           # Agent Builder setup instructions
 │   └── patients.json            # Sample patient data
 ├── package.json
+├── SETUP.md                     # Installation and setup guide
 └── .env.example
 ```
 
-## Available Scripts
+## Getting Started
 
-| Command | Description |
-|---|---|
-| `npm start` | Start the production server on port 3000 |
-| `npm run dev` | Start Vite dev server with HMR |
-| `npm run build` | Build frontend to `client/dist` |
-| `npm run start:dev` | Start backend with nodemon (auto-restart) |
-| `npm run tunnel` | Open Cloudflare tunnel for Twilio webhooks |
-| `npm run seed` | Seed test patient into Elasticsearch |
-| `npm run test:call` | Trigger a test follow-up call to the seeded patient |
+See [`SETUP.md`](SETUP.md) for prerequisites, installation, environment configuration, and running instructions.

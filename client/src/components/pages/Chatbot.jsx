@@ -59,18 +59,8 @@ function detectActions(text, patientsMap) {
     if (!isFullName) continue;
     if (!lower.includes(key)) continue;
 
-    const actions = [];
-    if (/follow[\s-]?up|reschedul|sooner|earlier appointment/i.test(text))
-      actions.push("schedule_followup");
-    if (/healthy|recovered|no concern|doing well|cleared/i.test(text))
-      actions.push("mark_healthy");
-    if (/escalat|urgent|worsen|flag|deteriorat|concerning|monitor/i.test(text))
-      actions.push("monitor_closely");
-
-    if (actions.length > 0) {
-      seen.add(patient.patient_id);
-      results.push({ patient, actions });
-    }
+    seen.add(patient.patient_id);
+    results.push({ patient, actions: ["schedule_followup", "monitor_closely"] });
   }
   return results;
 }
@@ -287,7 +277,7 @@ const Chatbot = () => {
       const data = await res.json();
       if (res.ok) {
         setConversationId(data.conversation_id);
-        const detectedActions = detectActions(data.response, nameLookup);
+        const detectedActions = detectActions(data.response, nameLookup).slice(0, 5);
         setMessages((prev) => [
           ...prev,
           { role: "assistant", content: data.response, detectedActions },
