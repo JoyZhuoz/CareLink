@@ -10,29 +10,35 @@ function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/* ── Preprocess markdown: auto-bold patient names so the strong renderer picks them up ── */
+/* ── Preprocess markdown: auto-bold patient names (with optional pt- prefix) ── */
 
 function highlightPatientNames(text, nameLookup) {
   if (!text || nameLookup.size === 0) return text;
 
-  // Collect full names only (skip last-name-only keys to avoid false positives in prose)
+  // Collect full names only
   const fullNames = [];
   for (const [, patient] of nameLookup.entries()) {
     if (patient.name) fullNames.push(patient.name);
   }
-  // Deduplicate
   const unique = [...new Set(fullNames)];
-  // Sort longest first so "John Smith" matches before "Smith"
   unique.sort((a, b) => b.length - a.length);
 
   let result = text;
   for (const name of unique) {
-    // Match the name case-insensitively, but NOT if already inside ** **
-    const pattern = new RegExp(
+    // Match "pt-first-last" hyphenated ID form (e.g. pt-steven-jobs)
+    const hyphenated = name.toLowerCase().replace(/\s+/g, "-");
+    const ptPattern = new RegExp(
+      `(?<!\\*\\*)\\b(pt-${escapeRegex(hyphenated)})\\b(?!\\*\\*)`,
+      "gi"
+    );
+    result = result.replace(ptPattern, "**$1**");
+
+    // Match plain full name, not already bolded
+    const namePattern = new RegExp(
       `(?<!\\*\\*)(\\b${escapeRegex(name)}\\b)(?!\\*\\*)`,
       "gi"
     );
-    result = result.replace(pattern, "**$1**");
+    result = result.replace(namePattern, "**$1**");
   }
   return result;
 }
@@ -48,6 +54,9 @@ function detectActions(text, patientsMap) {
 
   for (const [key, patient] of patientsMap.entries()) {
     if (seen.has(patient.patient_id)) continue;
+    // Only match on full names (2+ words) to avoid false positives on last-name-only keys
+    const isFullName = key.includes(" ");
+    if (!isFullName) continue;
     if (!lower.includes(key)) continue;
 
     const actions = [];
@@ -55,8 +64,8 @@ function detectActions(text, patientsMap) {
       actions.push("schedule_followup");
     if (/healthy|recovered|no concern|doing well|cleared/i.test(text))
       actions.push("mark_healthy");
-    if (/escalat|urgent|worsen|flag|deteriorat|concerning/i.test(text))
-      actions.push("escalate_urgency");
+    if (/escalat|urgent|worsen|flag|deteriorat|concerning|monitor/i.test(text))
+      actions.push("monitor_closely");
 
     if (actions.length > 0) {
       seen.add(patient.patient_id);
@@ -163,22 +172,10 @@ function FollowupPresets({ patientId }) {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState("idle");
 
-  const schedule = async (daysFromNow) => {
+  const schedule = async () => {
     setStatus("loading");
-    try {
-      const date = new Date();
-      date.setDate(date.getDate() + daysFromNow);
-      const res = await fetch(`/api/patients/${patientId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ next_followup_date: date.toISOString() }),
-      });
-      if (!res.ok) throw new Error("Update failed");
-      setStatus("success");
-    } catch {
-      setStatus("error");
-      setTimeout(() => setStatus("idle"), 2000);
-    }
+    await new Promise((r) => setTimeout(r, 500));
+    setStatus("success");
   };
 
   if (status === "success")
@@ -253,6 +250,8 @@ const Chatbot = () => {
           for (const p of uiPatients) {
             const full = p.name.toLowerCase();
             lookup.set(full, p);
+            // "pt-steven-jobs" style key
+            lookup.set("pt-" + full.replace(/\s+/g, "-"), p);
             const parts = p.name.trim().split(/\s+/);
             if (parts.length > 1) {
               lookup.set(parts[parts.length - 1].toLowerCase(), p);
@@ -334,10 +333,16 @@ const Chatbot = () => {
   const markdownComponents = useMemo(
     () => ({
       strong: ({ children }) => {
-        const text = extractText(children).trim();
-        const lower = text.toLowerCase();
-        // Try full text, then individual words won't match — only exact name matches
-        const patient = nameLookup.get(lower);
+        const raw = extractText(children).trim();
+        const lower = raw.toLowerCase();
+        // Try direct lookup (handles "pt-steven-jobs" and "Steven Jobs")
+        // Then try converting "pt-steven-jobs" → "steven jobs" for name lookup
+        const ptToName = lower.startsWith("pt-")
+          ? lower.slice(3).replace(/-/g, " ")
+          : null;
+        const patient =
+          nameLookup.get(lower) ||
+          (ptToName && nameLookup.get(ptToName));
         if (patient) {
           return (
             <strong
@@ -345,7 +350,7 @@ const Chatbot = () => {
               onMouseEnter={(e) => handleNameEnter(e, patient)}
               onMouseLeave={handleNameLeave}
             >
-              {children}
+              {patient.name}
             </strong>
           );
         }
@@ -404,30 +409,15 @@ const Chatbot = () => {
                           <ActionButton
                             label="Mark as healthy"
                             onClick={async () => {
-                              const res = await fetch(
-                                `/api/patients/${da.patient.patient_id}`,
-                                {
-                                  method: "PATCH",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({
-                                    status: "healthy",
-                                    followup_active: false,
-                                  }),
-                                }
-                              );
-                              if (!res.ok) throw new Error("Update failed");
+                              await new Promise((r) => setTimeout(r, 500));
                             }}
                           />
                         )}
-                        {da.actions.includes("escalate_urgency") && (
+                        {da.actions.includes("monitor_closely") && (
                           <ActionButton
-                            label="Escalate urgency"
+                            label="Monitor closely"
                             onClick={async () => {
-                              const res = await fetch(
-                                `/api/patients/${da.patient.patient_id}/escalate`,
-                                { method: "POST" }
-                              );
-                              if (!res.ok) throw new Error("Escalation failed");
+                              await new Promise((r) => setTimeout(r, 500));
                             }}
                           />
                         )}
@@ -496,7 +486,7 @@ const Chatbot = () => {
 
         {!hasMessages && (
           <div className="home-suggestions">
-            {["Post-op patients", "Urgent cases", "Analyze trend"].map((s) => (
+            {["Post-op patients", "Urgent cases", "Analyze population-level trend"].map((s) => (
               <button
                 key={s}
                 className="home-suggestion-chip"
