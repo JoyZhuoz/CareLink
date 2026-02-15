@@ -2,6 +2,8 @@
   <img src="CareLink_Banner.png" alt="CareLink — Connecting Patients, Empowering Care" width="100%" />
 </p>
 
+***
+
 ### Inspiration
 1 in 5 Medicare recipients are readmitted within just a month of discharge from the hospital due to post-surgery complications - complications which would have been highly avoidable had proactive and sufficient follow-up been conducted on discharged patients. Readmissions cost the U.S. hospital system 26 billion dollars a year, exerting stress upon understaffed and busy hospital systems without the bandwidth to ensure patients get consistent care after walking through the doors of the operating room.
 
@@ -34,15 +36,17 @@ We built CareLink with React for the frontend, Express.js for the backend, and a
 ```
 ┌──────────────────────────────────────────────────────────┐
 │                      PATIENT LAYER                       │
-└──────────────────────────┬───────────────────────────────┘
-                           ▼
+└──────────────────────────────────────────────────────────┘
+                            ▲
+                            │
 ┌──────────────────────────────────────────────────────────┐
 │  Conversational Interface Layer                          │
 │  - Web / Mobile App                                      │
 │  - Text-to-speech (ElevenLabs)                           │
 │  - Real-time streaming (Twilio)                          │
-└──────────────────────────┬───────────────────────────────┘
-                           ▼
+└──────────────────────────────────────────────────────────┘
+                            ▲
+                            │
 ┌──────────────────────────────────────────────────────────┐
 │  Primary Clinical Agent                                  │
 │  (Reasoning + Conversation Engine)                       │
@@ -50,33 +54,42 @@ We built CareLink with React for the frontend, Express.js for the backend, and a
 │  - Perplexity deep web research (PubMed, FDA, CDA)      │
 │  - Jina API embedding similarity match                   │
 │  - LLM (Elasticsearch-integrated Claude) reasoning       │
-└──────────────────────────┬───────────────────────────────┘
-                           ▼
+└──────────────────────────────────────────────────────────┘
+                          │  ▲
+                          ▼  │
+┌──────────────────────────────────────────────────────────┐
+│  Data & Retrieval Layer                                  │
+│                                                          │
+│  - Elastic Cloud database                                │
+│  - Jina embedding for semantic search                    │
+│  - Interactive clinician decision interface              │
+└──────────────────────────────────────────────────────────┘
+                          │  ▲
+                          ▼  │
 ┌──────────────────────────────────────────────────────────┐
 │  Agent Orchestration Layer                               │
 │  (Multi-Agent Router + Controller)                       │
 │                                                          │
 │  - Elastic Agent Builder + Workflow Orchestrator         │
-│  - ES|QL tool expert                                     │
 │  - Guardrails & Safety Policies                          │
 │  - Escalation Rules + Clinical guidelines RAG            │
 └────┬────────────┬────────────┬────────────┬──────────────┘
      ▼            ▼            ▼            ▼
 ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
 │ Symptom  │ │ Action   │ │Escalation│ │ General  │
-│ Expert   │ │ Expert   │ │ Expert   │ │ Expert   │
+│ Tool     │ │ Tool     │ │ Tool     │ │ Reasoning│
 │(Triage)  │ │(Follow-up│ │(Risk     │ │(FAQ /    │
 │          │ │ Logic)   │ │Detector) │ │ Support) │
-└──────────┘ └──────────┘ └──────────┘ └──────────┘
-                           │
-                           ▼
+└────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘
+     ▼            ▼            ▼            ▼
 ┌──────────────────────────────────────────────────────────┐
-│  Data & Retrieval Layer                                  │
+│  Clinical Intelligence Layer                             │
 │                                                          │
-│  - Elastic Cloud database                                │
-│  - Jina embedding for semantic search                    │
-│  - Interactive clinician decision interface               │
+│  - Medical NLP Model                                     │
+│  - Structured clinical reasoning prompts                 │
+│  - Interactive decision support interface                │
 └──────────────────────────────────────────────────────────┘
+
 ```
 
 ## Project Structure
