@@ -146,6 +146,22 @@ form {
   }
 }
 
+/* hero entrance animation */
+@keyframes hero-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .animate-card-enter {
   animation: card-enter 0.45s ease-out forwards;
+}
+
+.animate-hero-enter {
+  animation: hero-enter 0.45s ease-out forwards;
 }

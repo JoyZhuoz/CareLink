@@ -276,7 +276,7 @@ const Analytics = () => {
       <h2>Analytics</h2>
       <p className="analytics-subtitle">Stats from the patient database (Elasticsearch).</p>
 
-      <div className="analytics-stats-grid">
+      <div className="analytics-stats-grid animate-hero-enter">
         <div className="analytics-stat-card">
           <div className="label">Total patients</div>
           <div className="value">{stats.totalPatients}</div>

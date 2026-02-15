@@ -32,11 +32,9 @@
 }
 
 .analytics-stat-card {
-  background: linear-gradient(135deg, #f8f9fa 0%, #f0f2f5 100%);
-  border: 1px solid #e8e8e8;
-  border-radius: 8px;
+  background: color-mix(in srgb, #d4d4d4 50%, transparent);
+  border-radius: 10px;
   padding: 0.75rem 1rem;
-  box-shadow: none;
 }
 
 .analytics-stat-card .label {

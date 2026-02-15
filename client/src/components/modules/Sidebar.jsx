@@ -48,8 +48,9 @@ const Sidebar = ({ activePage }) => {
       <div className="flex items-center mb-10 px-2">
         <img src="/favicon.svg" alt="" className="w-16 h-16 flex-shrink-0" aria-hidden />
         <h1
-          className="text-3xl font-bold"
+          className="text-3xl font-bold cursor-pointer"
           style={{ color: "var(--primary)" }}
+          onClick={() => navigate(NAV_ROUTES.dashboard)}
         >
           CareLink
         </h1>

@@ -184,7 +184,7 @@ const Dashboard = () => {
         <>
           <SearchBar value={searchQuery} onChange={setSearchQuery} />
 
-          <div className="mt-12">
+          <div className="mt-12 animate-hero-enter">
             <h2 className="text-2xl font-bold mb-6" style={{ color: "var(--tertiary)" }}>
               Your Patients
             </h2>
