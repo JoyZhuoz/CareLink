@@ -52,9 +52,11 @@ const Chatbot = () => {
   return (
     <div className="home-container">
       {!hasMessages && (
-        <div className="home-hero">
-          <h1 className="home-title">CareLink</h1>
-          <p className="home-subtitle">Ask about patients, symptoms, recovery, and care plans</p>
+        <div className="home-hero-wrap">
+          <div className="home-hero">
+            <h1 className="home-title">CareLink</h1>
+            <p className="home-subtitle">Ask about patients, symptoms, recovery, and care plans</p>
+          </div>
         </div>
       )}
 
@@ -86,7 +88,7 @@ const Chatbot = () => {
         </div>
       )}
 
-      <div className={`home-input-area ${hasMessages ? "home-input-area--bottom" : ""}`}>
+      <div className="home-input-area">
         <form onSubmit={handleSubmit} className="home-form">
           <div className="home-input-wrapper">
             <input

@@ -13,6 +13,10 @@ const anthropic = new Anthropic({
 });
 
 const MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-4-20250514";
+// Faster model for per-turn triage (set CLAUDE_TRIAGE_MODEL for speed; default Haiku)
+const TRIAGE_MODEL = process.env.CLAUDE_TRIAGE_MODEL || "claude-3-5-haiku-20241022";
+const TRIAGE_MAX_TOKENS = parseInt(process.env.CLAUDE_TRIAGE_MAX_TOKENS || "380", 10);
+const RECOVERY_CONTEXT_MAX_CHARS = parseInt(process.env.CLAUDE_RECOVERY_CONTEXT_MAX_CHARS || "3800", 10);
 
 // ─── System prompt (adapted from agent-builder-config.js) ───────────────────
 // The Agent Builder version referenced "tools" that it would call.  Since we
@@ -206,11 +210,20 @@ async function classifyIdentity(answer) {
  * @returns {object|null} structured triage decision
  */
 async function getSymptomDecision(record, latestUtterance) {
-  // Step 1: Fetch recovery context and prior call history from Elasticsearch
-  const [recoveryContext, priorCallsContext] = await Promise.all([
-    fetchRecoveryContext(record.patientId),
-    fetchPriorCallsContext(record.patientId),
-  ]);
+  // Step 1: Use cached context if present (avoids refetching ES on every turn)
+  if (record.recoveryContext === undefined) {
+    const [recovery, prior] = await Promise.all([
+      fetchRecoveryContext(record.patientId),
+      fetchPriorCallsContext(record.patientId),
+    ]);
+    record.recoveryContext = recovery;
+    record.priorCallsContext = prior;
+  }
+  let recoveryContext = record.recoveryContext || null;
+  const priorCallsContext = record.priorCallsContext || null;
+  if (recoveryContext && recoveryContext.length > RECOVERY_CONTEXT_MAX_CHARS) {
+    recoveryContext = recoveryContext.slice(0, RECOVERY_CONTEXT_MAX_CHARS) + "\n\n[Truncated for length.]";
+  }
 
   // Step 2: Build the user message with full context
   const userPayload = {
@@ -230,8 +243,8 @@ async function getSymptomDecision(record, latestUtterance) {
 
   try {
     const resp = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 600,
+      model: TRIAGE_MODEL,
+      max_tokens: Math.min(600, Math.max(256, TRIAGE_MAX_TOKENS)),
       system: buildTriageSystem(recoveryContext, priorCallsContext),
       messages: [
         {

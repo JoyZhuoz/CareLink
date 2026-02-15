@@ -30,7 +30,7 @@ import twilioRoutes from "../patient-followup/routes/twilio.js";
 import analyticsRoutes from "../patient-followup/routes/analytics.js";
 import { startScheduler, runFollowUpNow } from "../patient-followup/services/schedulerService.js";
 
-// ── Agent Builder chat service ───────────────────────────────────────────────
+// ── Chat: Kibana Agent Builder only ─────────────────────────────────────────
 import * as callAgent from "./services/callAgent.js";
 
 // ── Express app ──────────────────────────────────────────────────────────────
@@ -49,7 +49,7 @@ app.use("/api/patients", patientRoutes);
 app.use("/api/twilio", twilioRoutes);
 app.use("/api/analytics", analyticsRoutes);
 
-// ── Chat route (Agent Builder) ───────────────────────────────────────────────
+// ── Chat route (Kibana Agent Builder only) ───────────────────────────────────
 app.post("/api/chat", async (req, res) => {
   try {
     const { message, conversation_id } = req.body;
@@ -58,7 +58,7 @@ app.post("/api/chat", async (req, res) => {
     }
     if (!callAgent.isConfigured()) {
       return res.status(503).json({
-        error: "AI service not configured. Set KIBANA and ELASTICSEARCH_API_KEY in .env.",
+        error: "Chat not configured. Set KIBANA and ELASTICSEARCH_API_KEY in server/.env.",
       });
     }
     const result = await callAgent.converse(message, conversation_id);
