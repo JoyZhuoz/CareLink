@@ -33,6 +33,11 @@ const PatientCard = ({ patient, onSelect }) => {
     return () => clearInterval(id);
   }, [nextCallDate]);
 
+  const formatDate = (date) => {
+    // format date from Feb, 14, 2026 to 2/14/2026
+    return new Date(date).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
+  };
+
   const countdown = liveCountdown || (nextCallDate ? formatCountdown(nextCallDate) : "Scheduled");
 
   const handleOpenEmail = (e) => {
@@ -88,7 +93,7 @@ const PatientCard = ({ patient, onSelect }) => {
 
   return (
     <div
-      className="bg-secondary-50 shadow-md rounded-corners p-8 transition-all duration-300 cursor-pointer hover:-translate-y-1 hover:shadow-lg flex flex-col h-full min-h-0"
+      className="bg-secondary-50 shadow-lg rounded-corners p-8 transition-all duration-300 cursor-pointer hover:-translate-y-1 hover:shadow-lg flex flex-col h-full min-h-0"
       onClick={() => onSelect && onSelect(patient)}
     >
       {/* Content above buttons — grows to push action area to bottom */}
@@ -105,7 +110,7 @@ const PatientCard = ({ patient, onSelect }) => {
         {/* Patient Name + urgency dot, then date underneath */}
         <div className="text-center mb-6">
           <div className="flex items-center justify-center gap-2">
-            <h3 className="text-2xl font-bold text-gray-900">{patient.name}</h3>
+            <h3 className="text-3xl font-bold text-gray-900">{patient.name}</h3>
             <span
               className={`inline-block w-3 h-3 rounded-full shrink-0 ${getUrgencyColor(patient.urgency)}`}
               title={patient.urgency || "Urgency"}
@@ -113,7 +118,7 @@ const PatientCard = ({ patient, onSelect }) => {
             />
           </div>
           {patient.dischargeDate && (
-            <p className="text-gray-700 font-medium mt-1">Discharged {patient.dischargeDate}</p>
+            <p className="text-gray-700 text-lg font-semibold mt-1">Discharged {formatDate(patient.dischargeDate)}</p>
           )}
         </div>
 

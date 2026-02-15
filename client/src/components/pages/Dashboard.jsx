@@ -144,6 +144,8 @@ const Dashboard = () => {
     return data;
   };
 
+  const URGENCY_ORDER = { Urgent: 0, Monitor: 1, Minimal: 2 };
+
   const filteredPatients = patientsData
     .filter((raw) => {
       const query = searchQuery.toLowerCase();
@@ -154,10 +156,15 @@ const Dashboard = () => {
         (raw.risk_factors || []).some((f) => f.toLowerCase().includes(query))
       );
     })
-    .map(patientToUI);
+    .map(patientToUI)
+    .sort((a, b) => {
+      const orderA = URGENCY_ORDER[a.urgency] ?? 3;
+      const orderB = URGENCY_ORDER[b.urgency] ?? 3;
+      return orderA - orderB;
+    });
 
   return (
-    <div className="mt-12 py-10 px-10">
+    <div className="mt-20 py-10 px-10">
       {selectedPatient && viewCallSummary ? (
         <CallSummary
           patient={selectedPatient}
@@ -177,11 +184,12 @@ const Dashboard = () => {
         <>
           <SearchBar value={searchQuery} onChange={setSearchQuery} />
 
-          <h2 className="text-2xl font-bold mb-6" style={{ color: "var(--tertiary)" }}>
-            Your Patients
-          </h2>
+          <div className="mt-12">
+            <h2 className="text-2xl font-bold mb-6" style={{ color: "var(--tertiary)" }}>
+              Your Patients
+            </h2>
 
-          {loading ? (
+            {loading ? (
             <p className="text-gray-600">Loading patients from database…</p>
           ) : loadError ? (
             <p className="text-red-600">{loadError}</p>
@@ -196,6 +204,9 @@ const Dashboard = () => {
               }}
             />
           )}
+          </div>
+
+
         </>
       )}
     </div>
