@@ -129,7 +129,7 @@ const PatientCard = ({ patient, onSelect, index = 0 }) => {
           <img
             src={avatarFailed && patient.avatarFallback ? patient.avatarFallback : patient.avatar}
             alt=""
-            className="w-14 h-14 rounded-xl object-cover ring-2 ring-white/80 shadow shrink-0"
+            className="w-14 h-14 rounded-xl object-cover shadow shrink-0"
             onError={() => setAvatarFailed(true)}
           />
           <div className="min-w-0 flex-1">
