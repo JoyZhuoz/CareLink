@@ -54,6 +54,14 @@ const Sidebar = ({ activePage }) => {
           CareLink
         </h1>
       </div>
+      <h1
+        className="text-3xl font-bold mb-10 px-2 cursor-pointer"
+        style={{ color: "var(--primary)" }}
+        onClick={() => navigate(NAV_ROUTES.dashboard)}
+
+      >
+        CareLink
+      </h1>
 
       {/* navigation items */}
       <nav className="flex flex-col gap-1">

@@ -1,123 +1,191 @@
-# How to code a webapp with this skeleton
+# CareLink
 
-## Initial setup
+AI-powered post-surgical patient follow-up and readmission prevention.
 
-All teammates will need (explained in weblab.is/hw0)
+<!-- TODO: Add project description -->
 
-- A bash console (on Mac or Linux, this is Terminal. On Windows, we recommend Git Bash)
-- NodeJS version 18. If it is installed correctly, typing "node --version" should give v18.13.0 and "npm --version" should give 8.19.3, or higher.
-- Visual Studio Code (or another code editor)
-- the Prettier VSCode extension
-
-This project is currently configured for a no-auth hackathon demo and does not require MongoDB.
-
-## Downloading these files
-
-First, you probably have a team repository somewhere (the link looks like: https://github.com/weblab-class/teammate1-teammate2-teammate3). You each should clone this (empty) repository by navigating to where you want your folder to be (**NOT in catbook**) and typing: git clone https://github.com/weblab-class/teammate1-teammate2-teammate3.git <-- with the correct link.
-
-Then, one of your team members will need to do the following:
-
-First on GitHub, download the skeleton (this repository) as a zip file, by clicking Code -> Download as ZIP. (Do not clone it, since this will download extra files, like .git, which will lead to GitHub being confused).
-
-Then, drag over all of the files in this skeleton into your team's folder. **Make sure to also drag over the hidden files!** To see these hidden files, navigate to the skeleton in Finder/File Explorer and press command+shift+period (mac) or View > Show > Hidden items (windows).
-
-The files/folders you must drag over are:
-
-- .gitignore (hidden)
-- .npmrc (hidden)
-- .prettierrc (hidden)
-- client (folder)
-- package-lock.json
-- package.json
-- README.md
-- server (folder)
-- vite.config.js
-
-Additionally, you must create a .env file in the root directory. See .env.example for an example of what this file should look like.
-
-Then, in terminal, navigate to your teams folder and push all of the files to your team's GitHub repository as usual:
-
-- git add -A
-- git commit -m "Skeleton code"
-- git push
-
-Now the rest of your teammates can pull all these files with a 'git pull'!
-
-Post on Piazza if you run into any issues
-
-## What you need to configure
-
-- Set Twilio environment variables in `.env` based on `.env.example`.
-- Set `PUBLIC_BASE_URL` so Twilio callbacks can reach your server.
-- (Optional) Add a favicon to your website at the path client/dist/favicon.ico
-- (Optional) Update website title in client/dist/index.html
-- (Optional) Update this README file ;)
-- (Optional) Update the package.json file with your app name :) (line 2)
-
-## How to run this skeleton
-
-First, 'npm install'
-Then open two separate terminals, and 'npm run dev' in the first, and 'npm start' in the second.
-Then open http://localhost:5173
-
-## Testing Twilio voice (tunnel + end-to-end)
-
-Twilio needs a public URL to send voice webhooks to your app. Use a tunnel when testing locally.
-
-1. **Start the server** (if not already): `npm start` (listens on port 3000).
-
-2. **Start a tunnel** in another terminal:
-   ```bash
-   npm run tunnel
-   ```
-   Copy the HTTPS URL it prints (e.g. `https://abc123.loca.lt`). If you use **ngrok** instead: `ngrok http 3000` and copy the HTTPS URL.
-
-3. **Point the server at the tunnel**: In `server/.env` set:
-   ```bash
-   PUBLIC_BASE_URL=https://your-tunnel-url-here
-   ```
-   Restart the server (`npm start`) so it uses this URL when creating Twilio calls.
-
-4. **Trigger a test call** (use your own phone in E.164, e.g. +14155551234):
-   ```bash
-   npm run test:twilio -- +14155551234
-   ```
-   Or set the number in env and run:
-   ```bash
-   TWILIO_TEST_TO=+14155551234 npm run test:twilio
-   ```
-   Your phone should ring; answer and follow the voice prompts (identity confirmation, then symptom questions).
-
-5. **Inspect call state** (optional): After a call, you can fetch the in-memory record:
-   ```bash
-   curl "http://localhost:3000/api/calls/CALL_SID"
-   ```
-   Replace `CALL_SID` with the value printed by the test script.
-
-<!-- ## How to go from this skeleton to your actual app
-
-Check out this [How to Get Started Guide](http://weblab.is/get-started) -->
-
-## Socket stuff
-
-Note: we'll be getting to this in lecture in week 2, so don't worry if you don't know it yet
-
-- If you're not using realtime updating or don't need server->client communication, you can remove socket entirely! (server-socket.js, client-socket.js, and anything that imports them)
-- If you are using sockets, consider what you want to do with the FIXME in server-socket.js
-
-## Edit at your own risk
-
-the following files students do not need to edit. feel free to read them if you would like.
+## Architecture
 
 ```
-client/src/utilities.js
-client/src/client-socket.js
-server/validator.js
-server/server-socket.js
-.npmrc
-.prettierrc
-package-lock.json
-vite.config.js
+┌──────────────────────────────────────────────────────────┐
+│                      PATIENT LAYER                       │
+└──────────────────────────┬───────────────────────────────┘
+                           ▼
+┌──────────────────────────────────────────────────────────┐
+│  Conversational Interface Layer                          │
+│  - Web / Mobile App                                      │
+│  - Text-to-speech (ElevenLabs)                           │
+│  - Real-time streaming (Twilio)                          │
+└──────────────────────────┬───────────────────────────────┘
+                           ▼
+┌──────────────────────────────────────────────────────────┐
+│  Primary Clinical Agent                                  │
+│  (Reasoning + Conversation Engine)                       │
+│                                                          │
+│  - Perplexity deep web research (PubMed, FDA, CDA)      │
+│  - Jina API embedding similarity match                   │
+│  - LLM (Elasticsearch-integrated Claude) reasoning       │
+└──────────────────────────┬───────────────────────────────┘
+                           ▼
+┌──────────────────────────────────────────────────────────┐
+│  Agent Orchestration Layer                               │
+│  (Multi-Agent Router + Controller)                       │
+│                                                          │
+│  - Elastic Agent Builder + Workflow Orchestrator         │
+│  - ES|QL tool expert                                     │
+│  - Guardrails & Safety Policies                          │
+│  - Escalation Rules + Clinical guidelines RAG            │
+└────┬────────────┬────────────┬────────────┬──────────────┘
+     ▼            ▼            ▼            ▼
+┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+│ Symptom  │ │ Action   │ │Escalation│ │ General  │
+│ Expert   │ │ Expert   │ │ Expert   │ │ Expert   │
+│(Triage)  │ │(Follow-up│ │(Risk     │ │(FAQ /    │
+│          │ │ Logic)   │ │Detector) │ │ Support) │
+└──────────┘ └──────────┘ └──────────┘ └──────────┘
+                           │
+                           ▼
+┌──────────────────────────────────────────────────────────┐
+│  Data & Retrieval Layer                                  │
+│                                                          │
+│  - Elastic Cloud database                                │
+│  - Jina embedding for semantic search                    │
+│  - Interactive clinician decision interface               │
+└──────────────────────────────────────────────────────────┘
 ```
 
-## Good luck on your project :)
+## Prerequisites
+
+- **Node.js** >= 20.x
+- **npm** (comes with Node.js)
+- **Elasticsearch** deployment on Elastic Cloud (with a `patients` index)
+- **Kibana** with Agent Builder enabled (for the clinical chatbot)
+- **Twilio** account (for automated patient calls)
+- **Cloudflared** (optional, for exposing local server to Twilio webhooks)
+- **ElevenLabs** API key (optional, for natural voice — falls back to Twilio's built-in "alice" voice)
+
+> **Note:** This is a Node.js project. There is no `requirements.txt` — all dependencies are managed through `package.json` via `npm install`.
+
+## Setup
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/JoyZhuoz/carelink.git
+cd carelink
+npm install
+```
+
+### 2. Configure environment variables
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and fill in your credentials:
+
+| Variable | Required | Description |
+|---|---|---|
+| `TWILIO_ACCOUNT_SID` | Yes | Twilio Account SID |
+| `TWILIO_AUTH_TOKEN` | Yes | Twilio Auth Token |
+| `TWILIO_PHONE_NUMBER` | Yes | Your Twilio phone number (E.164 format) |
+| `PUBLIC_BASE_URL` | Yes | Public URL for Twilio webhooks (use tunnel URL in dev) |
+| `ELASTICSEARCH_URL` | Yes | Elasticsearch deployment URL |
+| `ELASTICSEARCH_API_KEY` | Yes | Elasticsearch API key |
+| `KIBANA` | Yes | Kibana base URL (for Agent Builder chat) |
+| `ES_CHAT_INFERENCE_ID` | No | ES inference endpoint ID for LLM chat completion |
+| `ES_AGENT_BUILDER_ENDPOINT` | No | Agent Builder run endpoint |
+| `ES_AGENT_BUILDER_API_KEY` | No | Agent Builder API key |
+| `ELEVENLABS_API_KEY` | No | ElevenLabs API key for natural voice |
+| `ELEVENLABS_VOICE_ID` | No | ElevenLabs voice ID |
+
+### 3. Seed patient data (optional)
+
+```bash
+npm run seed
+```
+
+Seeds a test patient into Elasticsearch for development.
+
+### 4. Set up Twilio webhook tunnel (for local development)
+
+Twilio needs a public URL to send call webhooks back to your server. In a separate terminal:
+
+```bash
+npm run tunnel
+```
+
+Copy the generated URL and set it as `PUBLIC_BASE_URL` in your `.env`.
+
+### 5. Set up the Elastic Agent Builder
+
+See [`data/agent_setup.md`](data/agent_setup.md) for the full agent instruction and ES|QL workflow configuration.
+
+## Running
+
+Start the backend and frontend dev server in two terminals:
+
+```bash
+# Terminal 1 — Backend (Express + Socket.IO on port 3000)
+npm start
+
+# Terminal 2 — Frontend (Vite dev server with HMR on port 5173)
+npm run dev
+```
+
+For production, build the frontend first:
+
+```bash
+npm run build
+npm start
+```
+
+The server serves the built frontend from `client/dist` and runs on port 3000.
+
+## Project Structure
+
+```
+carelink/
+├── client/                      # React frontend (Vite + Tailwind)
+│   └── src/
+│       └── components/
+│           ├── layouts/         # SidebarLayout (shared shell)
+│           ├── modules/         # PatientCard, PatientProfile, CallSummary, Sidebar, etc.
+│           └── pages/           # Dashboard, Chatbot, Analytics
+├── server/                      # Express server
+│   ├── server.js                # Main entry — routes, SSE chat, Socket.IO
+│   └── services/
+│       ├── callAgent.js         # Elastic Agent Builder client (SSE streaming)
+│       └── elasticService.js    # Elasticsearch helpers
+├── patient-followup/            # Follow-up call system
+│   ├── routes/
+│   │   ├── patients.js          # Patient CRUD + search API
+│   │   └── twilio.js            # Twilio call webhooks
+│   ├── services/
+│   │   ├── claudeService.js     # Claude LLM for call triage
+│   │   ├── twilioService.js     # Twilio call orchestration
+│   │   ├── elevenLabsService.js # Text-to-speech voice generation
+│   │   ├── embeddingService.js  # Jina embedding for semantic search
+│   │   ├── perplexityService.js # Medical context research
+│   │   ├── patientService.js    # Elasticsearch patient queries
+│   │   └── schedulerService.js  # Cron-based follow-up scheduler
+│   └── scripts/
+│       └── seed-patient-due-now.js
+├── data/
+│   ├── agent_setup.md           # Agent Builder setup instructions
+│   └── patients.json            # Sample patient data
+├── package.json
+└── .env.example
+```
+
+## Available Scripts
+
+| Command | Description |
+|---|---|
+| `npm start` | Start the production server on port 3000 |
+| `npm run dev` | Start Vite dev server with HMR |
+| `npm run build` | Build frontend to `client/dist` |
+| `npm run start:dev` | Start backend with nodemon (auto-restart) |
+| `npm run tunnel` | Open Cloudflare tunnel for Twilio webhooks |
+| `npm run seed` | Seed test patient into Elasticsearch |
+| `npm run test:call` | Trigger a test follow-up call to the seeded patient |

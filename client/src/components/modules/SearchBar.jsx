@@ -8,7 +8,7 @@ const SearchBar = ({ value, onChange }) => {
         placeholder="Search by name, symptoms, or operation..."
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-gray text-black rounded-xl py-3 px-5 pr-12 text-sm outline-none border border-gray-200 focus:border-gray-400 transition-colors"
+        className="w-full bg-gray text-black rounded-full py-3 px-5 pr-12 text-sm outline-none border border-gray-200 focus:border-gray-400 transition-colors"
         style={{ color: "var(--tertiary)" }}
       />
       <svg
