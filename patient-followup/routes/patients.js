@@ -66,6 +66,34 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+// Update patient fields (allowlisted)
+router.patch("/:id", async (req, res) => {
+  try {
+    const allowed = ["next_followup_date", "status", "followup_active"];
+    const fields = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) fields[key] = req.body[key];
+    }
+    if (Object.keys(fields).length === 0) {
+      return res.status(400).json({ error: "No valid fields provided" });
+    }
+    await patientService.updatePatientFields(req.params.id, fields);
+    res.json({ message: "Patient updated", fields });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Escalate latest call triage level
+router.post("/:id/escalate", async (req, res) => {
+  try {
+    await patientService.escalateLatestCallTriage(req.params.id);
+    res.json({ message: "Triage level escalated" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Add call to patient history
 router.post("/:id/calls", async (req, res) => {
   try {

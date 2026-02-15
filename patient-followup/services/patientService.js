@@ -110,6 +110,56 @@ async function addCallToHistory(patientId, callData) {
   });
 }
 
+async function updatePatientFields(patientId, fields) {
+  return await esClient.update({
+    index: INDEX_NAME,
+    id: patientId,
+    doc: fields,
+  });
+}
+
+async function escalateLatestCallTriage(patientId) {
+  return await esClient.update({
+    index: INDEX_NAME,
+    id: patientId,
+    script: {
+      source: `
+        if (ctx._source.call_history != null && ctx._source.call_history.size() > 0) {
+          def last = ctx._source.call_history[ctx._source.call_history.size() - 1];
+
+          // Determine current level from either path
+          def level = null;
+          if (last.containsKey('triage_level') && last.triage_level != null) {
+            level = last.triage_level;
+          } else if (last.containsKey('fields') && last.fields != null
+                     && last.fields.containsKey('triage_level')
+                     && last.fields.triage_level != null
+                     && last.fields.triage_level.size() > 0) {
+            level = last.fields.triage_level[0];
+          }
+
+          // Compute new level
+          def newLevel;
+          if (level == null || level == 'green') {
+            newLevel = 'yellow';
+          } else if (level == 'yellow') {
+            newLevel = 'red';
+          } else {
+            newLevel = level;
+          }
+
+          // Write back to both paths so reads always find it
+          last.triage_level = newLevel;
+          if (last.containsKey('fields') && last.fields != null) {
+            last.fields.triage_level = [newLevel];
+          }
+        }
+      `,
+      lang: 'painless',
+    },
+  });
+}
+
 export {
   createIndex,
   addPatient,
@@ -117,5 +167,7 @@ export {
   getAllPatients,
   getPatientsForFollowup,
   getPatientById,
-  addCallToHistory
+  addCallToHistory,
+  updatePatientFields,
+  escalateLatestCallTriage
 };
