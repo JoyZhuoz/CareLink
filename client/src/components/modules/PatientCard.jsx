@@ -13,7 +13,7 @@ function formatCountdown(isoDate) {
   return `${mins}m`;
 }
 
-const PatientCard = ({ patient, onSelect }) => {
+const PatientCard = ({ patient, onSelect, index = 0 }) => {
   const [calling, setCalling] = useState(false);
   const [callStatus, setCallStatus] = useState(null); // "success" | "error" | null
   const [liveCountdown, setLiveCountdown] = useState("");
@@ -93,7 +93,8 @@ const PatientCard = ({ patient, onSelect }) => {
 
   return (
     <div
-      className="bg-secondary-50 rounded-2xl shadow-md transition-all duration-300 cursor-pointer hover:shadow-xl hover:-translate-y-0.5 flex flex-col h-full min-h-0 overflow-hidden"
+      className="bg-secondary-50 rounded-2xl shadow-md transition-all duration-300 cursor-pointer hover:shadow-xl hover:-translate-y-0.5 flex flex-col h-full min-h-0 overflow-hidden animate-card-enter"
+      style={{ animationDelay: `${index * 70}ms` }}
       onClick={() => onSelect && onSelect(patient)}
     >
       <div className="flex-1 min-h-0 flex flex-col p-6">
