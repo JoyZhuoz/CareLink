@@ -13,10 +13,6 @@ const anthropic = new Anthropic({
 });
 
 const MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-4-20250514";
-// Faster model for per-turn triage (set CLAUDE_TRIAGE_MODEL for speed; default Haiku)
-const TRIAGE_MODEL = process.env.CLAUDE_TRIAGE_MODEL || "claude-3-5-haiku-20241022";
-const TRIAGE_MAX_TOKENS = parseInt(process.env.CLAUDE_TRIAGE_MAX_TOKENS || "380", 10);
-const RECOVERY_CONTEXT_MAX_CHARS = parseInt(process.env.CLAUDE_RECOVERY_CONTEXT_MAX_CHARS || "3800", 10);
 
 // ─── System prompt (adapted from agent-builder-config.js) ───────────────────
 // The Agent Builder version referenced "tools" that it would call.  Since we
@@ -90,6 +86,12 @@ Conversation policy:
 - Never say or imply the patient is "too vague". Ask one concrete follow-up:
   e.g. "When did that start?", "Is it getting better, worse, or about the same?",
   "On a scale of 1 to 10, how would you rate it?"
+- Do NOT repeat the same follow-up question you already asked. Check the transcript:
+  if the last thing the agent said was a question and the patient just gave a partial
+  answer (e.g. "It started", "A few days", "Worse"), acknowledge what they said and
+  ask a *different* or more specific question (e.g. "When exactly—days or weeks ago?"
+  or "Is it getting better, worse, or about the same?"). Never say the exact same
+  question again.
 - Ask at most ONE focused follow-up per turn. Do not exceed max_followups.
 - Prioritize: symptom onset/timeline, worsening vs improving, severity, red flags.
 - Only finalize triage (end_call true, needs_followup false) when:
@@ -98,13 +100,12 @@ Conversation policy:
   (c) the response is a clear safety red-flag.
 
 Triage policy:
-- red: symptoms match WARNING SIGNS from the expected recovery doc.
-  Includes: fever >101F + surgical site changes, uncontrolled bleeding,
-  chest pain, severe dyspnea, confusion, signs of sepsis.
-  ALWAYS set end_call=true for red.
-- yellow: symptoms are outside NORMAL/EXPECTED range but don't clearly match
-  urgent warning signs. Clinician follow-up needed.
-- green: symptoms fall within NORMAL/EXPECTED recovery pattern.
+- red: symptoms match WARNING SIGNS from the expected recovery doc, OR: radiating/spreading
+  pain (e.g. pain "all the way to" another body part), fever >101F + site changes,
+  uncontrolled bleeding, chest pain, severe dyspnea, confusion, signs of sepsis,
+  sudden severe pain far worse than baseline. ALWAYS set end_call=true for red.
+- yellow: symptoms outside NORMAL/EXPECTED range but not clear urgent warning signs.
+- green: symptoms within NORMAL/EXPECTED recovery pattern.
 
 Safety hard stops (always red, always end_call=true):
 - Chest pain or pressure
@@ -112,7 +113,8 @@ Safety hard stops (always red, always end_call=true):
 - Uncontrolled bleeding
 - Confusion or altered mental status
 - Fever >103F or signs of sepsis
-- Sudden severe pain far worse than baseline`;
+- Sudden severe pain far worse than baseline
+- Radiating or spreading pain (e.g. pain extending to other body parts, "all the way to my...")`;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -153,14 +155,26 @@ async function fetchPriorCallsContext(patientId) {
   }
 }
 
-/** Parse JSON from Claude's response text, tolerant of markdown fences. */
+/** Parse JSON from Claude's response text. Tolerant of markdown fences, extra prose, trailing commas. */
 function parseJSON(text) {
-  // Strip markdown code fences if present
+  if (!text || typeof text !== "string") return null;
   let cleaned = text.trim();
+  // Strip markdown code fences
   if (cleaned.startsWith("```")) {
-    cleaned = cleaned.replace(/^```(?:json)?\s*/, "").replace(/```\s*$/, "");
+    cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
   }
-  return JSON.parse(cleaned);
+  // If there's prose before/after, try to extract the first {...} object
+  const firstBrace = cleaned.indexOf("{");
+  if (firstBrace > 0) cleaned = cleaned.slice(firstBrace);
+  const lastBrace = cleaned.lastIndexOf("}");
+  if (lastBrace !== -1 && lastBrace < cleaned.length - 1) cleaned = cleaned.slice(0, lastBrace + 1);
+  // Allow trailing commas (invalid JSON but some models emit them)
+  cleaned = cleaned.replace(/,(\s*[}\]])/g, "$1");
+  try {
+    return JSON.parse(cleaned);
+  } catch (e) {
+    return null;
+  }
 }
 
 // ─── Public API ─────────────────────────────────────────────────────────────
@@ -219,11 +233,8 @@ async function getSymptomDecision(record, latestUtterance) {
     record.recoveryContext = recovery;
     record.priorCallsContext = prior;
   }
-  let recoveryContext = record.recoveryContext || null;
+  const recoveryContext = record.recoveryContext || null;
   const priorCallsContext = record.priorCallsContext || null;
-  if (recoveryContext && recoveryContext.length > RECOVERY_CONTEXT_MAX_CHARS) {
-    recoveryContext = recoveryContext.slice(0, RECOVERY_CONTEXT_MAX_CHARS) + "\n\n[Truncated for length.]";
-  }
 
   // Step 2: Build the user message with full context
   const userPayload = {
@@ -243,8 +254,8 @@ async function getSymptomDecision(record, latestUtterance) {
 
   try {
     const resp = await anthropic.messages.create({
-      model: TRIAGE_MODEL,
-      max_tokens: Math.min(600, Math.max(256, TRIAGE_MAX_TOKENS)),
+      model: MODEL,
+      max_tokens: 600,
       system: buildTriageSystem(recoveryContext, priorCallsContext),
       messages: [
         {
@@ -255,13 +266,61 @@ async function getSymptomDecision(record, latestUtterance) {
     });
 
     const text = resp.content[0]?.text || "";
-    console.log("Claude triage response:", text.slice(0, 500));
     const parsed = parseJSON(text);
+    if (!parsed || typeof parsed !== "object") {
+      console.error("Claude triage: invalid or empty JSON. Raw (first 400 chars):", text.slice(0, 400));
+      return null;
+    }
     return parsed;
   } catch (err) {
-    console.error("Claude triage error:", err.message);
+    console.error("Claude triage error:", err.message, err.code || "");
+    if (err.status) console.error("  status:", err.status);
     return null;
   }
 }
 
-export { classifyIdentity, getSymptomDecision };
+const SYMPTOM_EXTRACT_SYSTEM = `You are extracting symptoms from a completed post-surgical follow-up call transcript.
+Your task: list the symptoms or concerns the PATIENT reported, as short phrases suitable for a dashboard.
+Rules:
+- Use the ENTIRE transcript. Include every symptom or concern the patient mentioned.
+- Output at most 4 short phrases (e.g. "chest pain", "fever", "swelling at incision", "dizziness").
+- Each phrase should be a clear symptom or concern, not a timeline or vague description (e.g. not "just started a week ago").
+- Return JSON only: { "symptoms": ["phrase1", "phrase2", ...] }
+- If the patient reported no symptoms, return { "symptoms": [] }`;
+
+/**
+ * Extract up to 4 short symptom phrases from the full call transcript. Call this AFTER the call ends.
+ * @param {Array<{ speaker: string, text: string }>} transcript
+ * @returns {Promise<string[]>} up to 4 short symptom phrases
+ */
+async function extractSymptomsFromTranscript(transcript) {
+  if (!Array.isArray(transcript) || transcript.length === 0) return [];
+
+  const text = transcript
+    .map((t) => `${(t.speaker || "unknown").toUpperCase()}: ${(t.text || "").trim()}`)
+    .filter((line) => line.length > 2)
+    .join("\n");
+  if (!text.trim()) return [];
+
+  try {
+    const resp = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 1024,
+      system: SYMPTOM_EXTRACT_SYSTEM,
+      messages: [{ role: "user", content: `Transcript:\n${text}` }],
+    });
+    const raw = resp.content[0]?.text || "";
+    const parsed = parseJSON(raw);
+    const list = parsed?.symptoms;
+    if (!Array.isArray(list)) return [];
+    return list
+      .slice(0, 4)
+      .map((s) => (typeof s === "string" ? s : String(s)).trim())
+      .filter(Boolean);
+  } catch (err) {
+    console.error("Claude symptom extract error:", err.message);
+    return [];
+  }
+}
+
+export { classifyIdentity, getSymptomDecision, extractSymptomsFromTranscript };

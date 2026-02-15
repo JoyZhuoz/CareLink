@@ -12,6 +12,7 @@
     "start:dev": "nodemon server/server.js",
     "tunnel": "cloudflared tunnel --url http://localhost:3000",
     "seed": "node patient-followup/scripts/seed-patient-due-now.js",
+    "seed:steven": "node patient-followup/scripts/seed-patient-steven-jobs.js",
     "test:call": "curl -s -X POST http://localhost:3000/api/twilio/call/seed-due-now | python3 -m json.tool"
   },
   "engines": {

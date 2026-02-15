@@ -45,12 +45,15 @@ const Sidebar = ({ activePage }) => {
       className="h-full min-h-screen bg-secondary-20 rounded-corners flex flex-col py-8 px-5 z-10 overflow-hidden"
       style={{ width: "100%" }}
     >
-      <h1
-        className="text-3xl font-bold mb-10 px-2"
-        style={{ color: "var(--primary)" }}
-      >
-        CareLink
-      </h1>
+      <div className="flex items-center gap-3 mb-10 px-2">
+        <img src="/favicon.svg" alt="" className="w-16 h-16 flex-shrink-0" aria-hidden />
+        <h1
+          className="text-3xl font-bold"
+          style={{ color: "var(--primary)" }}
+        >
+          CareLink
+        </h1>
+      </div>
 
       {/* navigation items */}
       <nav className="flex flex-col gap-1">

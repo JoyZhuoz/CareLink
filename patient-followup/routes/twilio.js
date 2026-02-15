@@ -4,6 +4,7 @@ import * as patientService from '../services/patientService.js';
 import * as embeddingService from '../services/embeddingService.js';
 import * as perplexityService from '../services/perplexityService.js';
 import * as elevenLabsService from '../services/elevenLabsService.js';
+import { extractSymptomsFromTranscript } from '../services/claudeService.js';
 
 const router = express.Router();
 
@@ -19,28 +20,32 @@ function errorTwiml(message = "We're sorry, something went wrong. Please try aga
   return `<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="alice">${message.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</Say><Hangup/></Response>`;
 }
 
+/** Catch async rejections so we always return TwiML to Twilio (no JSON → no "application error"). */
+function withTwiML(handler) {
+  return (req, res, next) => {
+    Promise.resolve(handler(req, res, next)).catch((err) => {
+      console.error('Twilio webhook error:', err?.message || err);
+      if (!res.headersSent) res.type('text/xml').status(500).send(errorTwiml());
+    });
+  };
+}
+
 // ---------- Voice webhook (call starts here) ----------
-router.post('/voice/:patientId', async (req, res) => {
-  try {
-    const patient = await patientService.getPatientById(req.params.patientId);
-    const twiml = await twilioService.generateVoiceResponse(patient);
-    res.type('text/xml').send(twiml);
-  } catch (error) {
-    console.error('Voice webhook error:', error.message);
-    res.type('text/xml').status(500).send(errorTwiml());
-  }
-});
+router.post('/voice/:patientId', withTwiML(async (req, res) => {
+  const patient = await patientService.getPatientById(req.params.patientId);
+  const twiml = await twilioService.generateVoiceResponse(patient);
+  res.type('text/xml').send(twiml);
+}));
 
 // ---------- Gather webhook (identity + symptom turns) ----------
-router.post('/gather/:patientId', async (req, res) => {
-  try {
-    const { patientId } = req.params;
-    const callSid = req.body.CallSid;
-    const speech  = (req.body.SpeechResult || '').trim();
-    const digits  = (req.body.Digits || '').trim();
-    const answer  = speech || digits || '';
+router.post('/gather/:patientId', withTwiML(async (req, res) => {
+  const { patientId } = req.params;
+  const callSid = req.body.CallSid;
+  const speech  = (req.body.SpeechResult || '').trim();
+  const digits  = (req.body.Digits || '').trim();
+  const answer  = speech || digits || '';
 
-    const twiml = await twilioService.handleGather(patientId, callSid, answer);
+  const twiml = await twilioService.handleGather(patientId, callSid, answer);
 
     // After call ends, persist full conversation transcript + triage
     const state = twilioService.getCallState(callSid);
@@ -88,6 +93,17 @@ router.post('/gather/:patientId', async (req, res) => {
           console.warn('Could not compute condition_change:', e.message);
         }
 
+        // Extract up to 4 short symptom phrases from the ENTIRE transcript (post-call)
+        let symptomsForRecord = state.symptomsMentioned || [];
+        try {
+          const extracted = await extractSymptomsFromTranscript(state.transcript);
+          if (Array.isArray(extracted) && extracted.length > 0) {
+            symptomsForRecord = extracted;
+          }
+        } catch (extractErr) {
+          console.warn('Symptom extract skipped, using per-turn list:', extractErr.message);
+        }
+
         await patientService.addCallToHistory(patientId, {
           call_date: new Date().toISOString(),
           transcript: conversationTranscript,
@@ -95,7 +111,7 @@ router.post('/gather/:patientId', async (req, res) => {
           reasoning_summary: state.reasoningSummary,
           matched_complications: state.matchedComplications,
           recommended_action: state.recommendedAction,
-          symptoms_mentioned: state.symptomsMentioned || [],
+          symptoms_mentioned: symptomsForRecord,
           condition_change: conditionChange,
           similarity_score: comparison.similarity_score,
           flagged: comparison.flagged,
@@ -105,12 +121,8 @@ router.post('/gather/:patientId', async (req, res) => {
       }
     }
 
-    res.type('text/xml').send(twiml);
-  } catch (error) {
-    console.error('Gather webhook error:', error.message);
-    res.type('text/xml').status(500).send(errorTwiml());
-  }
-});
+  res.type('text/xml').send(twiml);
+}));
 
 // ---------- Transcription webhook (legacy / fallback) ----------
 router.post('/transcription/:patientId', async (req, res) => {

@@ -111,6 +111,27 @@ async function getClaudeSymptomDecision(record, latestUtterance) {
   return await claudeGetSymptomDecision(record, latestUtterance);
 }
 
+const FALLBACK_QUESTIONS = [
+  "Can you tell me when this started and whether it's getting better, worse, or the same?",
+  "On a scale of 1 to 10, how would you rate the pain or discomfort?",
+  "Is the symptom constant, or does it come and go?",
+  "Can you describe it in a bit more detail?",
+];
+
+/** Pick a follow-up we haven't already asked (avoid repeating). */
+function getNextFollowupQuestion(record) {
+  const asked = (record.transcript || [])
+    .filter((t) => t.speaker === "ai")
+    .map((t) => (t.text || "").trim().slice(0, 80));
+  for (const q of FALLBACK_QUESTIONS) {
+    const qShort = q.slice(0, 50);
+    if (!asked.some((a) => a.includes(qShort) || qShort.includes(a.slice(0, 50)))) {
+      return q;
+    }
+  }
+  return "Can you tell me a bit more so we can help?";
+}
+
 function defaultDecision(record, utterance) {
   const t = (utterance || "").toLowerCase();
   const redFlags = [
@@ -121,6 +142,11 @@ function defaultDecision(record, utterance) {
     "confusion",
     "high fever",
     "severe pain",
+    "radiating",
+    "all the way to",
+    "spreading to",
+    "can't breathe",
+    "uncontrolled",
   ];
   const isRed = redFlags.some((w) => t.includes(w));
 
@@ -143,9 +169,7 @@ function defaultDecision(record, utterance) {
 
   const needsMore = record.followupCount < MAX_FOLLOWUPS;
   return {
-    next_question: needsMore
-      ? "Can you tell me when this started and whether it is getting better, worse, or the same?"
-      : "",
+    next_question: needsMore ? getNextFollowupQuestion(record) : "",
     needs_followup: needsMore,
     end_call: !needsMore,
     triage_level: "yellow",
@@ -424,9 +448,18 @@ async function handleGather(patientId, callSid, answer) {
 
   if (canFollowup) {
     record.followupCount += 1;
-    const ackAndQuestion = [decision.patient_facing_ack, decision.next_question]
-      .filter(Boolean)
-      .join(" ");
+    // Never repeat the same question: if last AI message was this question, use a different one
+    let questionToAsk = (decision.next_question || "").trim();
+    const lastAI = (record.transcript || [])
+      .filter((t) => t.speaker === "ai")
+      .map((t) => (t.text || "").trim())
+      .pop();
+    if (questionToAsk && lastAI && (lastAI.includes(questionToAsk.slice(0, 40)) || questionToAsk.includes(lastAI.slice(0, 40)))) {
+      questionToAsk = getNextFollowupQuestion(record);
+    }
+    if (!questionToAsk) questionToAsk = getNextFollowupQuestion(record);
+
+    const ackAndQuestion = [decision.patient_facing_ack, questionToAsk].filter(Boolean).join(" ");
     if (decision.patient_facing_ack) await playOrSay(twiml, decision.patient_facing_ack);
     const g = twiml.gather({
       input: "speech dtmf",
@@ -435,7 +468,7 @@ async function handleGather(patientId, callSid, answer) {
       timeout: 6,
       speechTimeout: "auto",
     });
-    await playOrSay(g, decision.next_question);
+    await playOrSay(g, questionToAsk);
     logAI(ackAndQuestion);
   } else {
     let closingMsg = "";

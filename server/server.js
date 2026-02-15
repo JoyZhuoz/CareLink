@@ -102,10 +102,19 @@ app.use((req, res) => {
   res.status(404).send("Not found");
 });
 
-// ── Error handler ────────────────────────────────────────────────────────────
-app.use((err, _req, res, _next) => {
-  console.error("Server error:", err);
-  res.status(err.status || 500).json({ error: err.message });
+// ── Error handler (TwiML for Twilio so they never see JSON → "application error") ──
+const errorTwiml = () =>
+  '<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="alice">We\'re sorry, something went wrong. Goodbye.</Say><Hangup/></Response>';
+
+app.use((err, req, res, _next) => {
+  console.error("Server error:", err?.message || err);
+  if (err?.stack) console.error(err.stack);
+  const status = err.status || 500;
+  if (req.path.startsWith("/api/twilio") && req.method === "POST") {
+    res.type("text/xml").status(status).send(errorTwiml());
+    return;
+  }
+  res.status(status).json({ error: err.message });
 });
 
 // ── Start server + Socket.IO ─────────────────────────────────────────────────
