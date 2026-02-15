@@ -1,5 +1,6 @@
 import React from "react";
 import CallTranscript from "./CallTranscript";
+import { useState } from "react";
 
 const CallSummary = ({ patient, onBack }) => {
   const callHistory = patient.call_history || [];
@@ -7,6 +8,7 @@ const CallSummary = ({ patient, onBack }) => {
   const getCallDate = (c) => c.call_date || c.fields?.call_date?.[0] || "";
   const sortedCalls = [...callHistory].sort((a, b) => new Date(getCallDate(b)) - new Date(getCallDate(a)));
 
+  const [avatarFailed, setAvatarFailed] = useState(false);
   return (
     <div>
       {/* Back Arrow */}
@@ -23,7 +25,7 @@ const CallSummary = ({ patient, onBack }) => {
       {/* Patient Header — stock photo with initials fallback on load error */}
       <div className="flex items-center gap-4 mb-8">
         <img
-          src={avatarFailed && patient.avatarFallback ? patient.avatarFallback : patient.avatar}
+          src={avatarFailed ? patient.avatarFallback : patient.avatar}
           alt={patient.name}
           className="w-16 h-16 rounded-full object-cover shadow-md"
           onError={() => setAvatarFailed(true)}

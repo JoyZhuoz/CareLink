@@ -76,7 +76,7 @@ function patientToUI(raw) {
   }
 
   const name = raw.name || "Unknown";
-  // Deterministic stock photo per patient; fallback to initials if image fails to load
+  // deterministic stock photo per patient; fallback to initials if image fails to load
   const avatar = `https://i.pravatar.cc/128?u=${encodeURIComponent(raw.patient_id)}`;
   const avatarFallback =
     `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=128&background=random`;

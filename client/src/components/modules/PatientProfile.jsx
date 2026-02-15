@@ -3,6 +3,7 @@ import React, { useState } from "react";
 const PatientProfile = ({ patient, onBack, onViewSummary, onContact }) => {
   const [callStatus, setCallStatus] = useState(null); // "loading" | "success" | "error"
   const [callError, setCallError] = useState("");
+  const [avatarFailed, setAvatarFailed] = useState(false);
 
   const handleContact = async () => {
     if (onContact) {
@@ -171,7 +172,7 @@ const PatientProfile = ({ patient, onBack, onViewSummary, onContact }) => {
           <button
             type="button"
             onClick={() => onViewSummary && onViewSummary()}
-            className="text-white font-bold py-3 px-10 bg-gray-600 hover:bg-gray-700 transition-all duration-200 rounded-xl"
+            className="text-white font-bold py-3 px-10 button-tertiary transition-all duration-200 rounded-xl"
           >
             See call history
           </button>

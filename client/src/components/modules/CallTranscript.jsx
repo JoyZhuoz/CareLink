@@ -2,6 +2,7 @@ import React, { useState } from "react";
 
 const CallTranscript = ({ call, defaultExpanded = true }) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  
 
   const fields = call.fields || {};
   const hasDirectTranscript = Array.isArray(call.transcript) && call.transcript.length > 0;
