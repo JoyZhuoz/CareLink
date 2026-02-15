@@ -32,6 +32,7 @@ import { startScheduler, runFollowUpNow } from "../patient-followup/services/sch
 
 // ── Chat: Kibana Agent Builder only ─────────────────────────────────────────
 import * as callAgent from "./services/callAgent.js";
+import { sendEmail, isEmailConfigured } from "./services/emailService.js";
 
 // ── Express app ──────────────────────────────────────────────────────────────
 const app = express();
@@ -65,6 +66,26 @@ app.post("/api/chat", async (req, res) => {
     res.json({ conversation_id: result.conversation_id, response: result.response });
   } catch (err) {
     console.error("Chat error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Send email (e.g. from PatientCard)
+const EMAIL_TO = "margo.joe708@gmail.com";
+app.post("/api/email/send", async (req, res) => {
+  try {
+    if (!isEmailConfigured()) {
+      return res.status(503).json({ error: "Email not configured. Set EMAIL_USER and EMAIL_APP_PASSWORD in server/.env." });
+    }
+    const { to, subject, text } = req.body;
+    await sendEmail({
+      to: to || EMAIL_TO,
+      subject: subject || "(No subject)",
+      text: text || "",
+    });
+    res.json({ ok: true, message: "Email sent" });
+  } catch (err) {
+    console.error("Email send error:", err);
     res.status(500).json({ error: err.message });
   }
 });
