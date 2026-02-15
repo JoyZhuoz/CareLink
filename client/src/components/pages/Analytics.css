@@ -104,6 +104,14 @@
   width: 100%;
 }
 
+/* Allow rotated X-axis labels to render without clipping */
+.analytics-bar-wrap .recharts-cartesian-axis-tick {
+  overflow: visible;
+}
+.analytics-bar-wrap .recharts-layer {
+  overflow: visible;
+}
+
 /* Tooltip above legend when hovering symptoms chart */
 .analytics-symptoms-chart .recharts-tooltip-wrapper {
   z-index: 100;

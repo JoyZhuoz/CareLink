@@ -97,6 +97,30 @@ const MultiLineTick = ({ x, y, payload, fontSize = 12 }) => {
   );
 };
 
+/** Slight rotation for X-axis labels to avoid overlap with other text. */
+const TICK_ROTATION_ANGLE = -38;
+
+/** Rotated X-axis tick to prevent overlap when many columns (e.g. Surgery Freq, Risk Factors). */
+const RotatedTick = ({ x, y, payload, fontSize = 10, angle = TICK_ROTATION_ANGLE }) => {
+  const raw = payload?.value ?? "";
+  const text = toTitleCase(typeof raw === "string" ? raw : String(raw));
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text
+        x={0}
+        y={0}
+        dy={4}
+        textAnchor="end"
+        fill="var(--tertiary)"
+        fontSize={fontSize}
+        transform={`rotate(${angle})`}
+      >
+        {text}
+      </text>
+    </g>
+  );
+};
+
 const AgeHistogram = ({ data }) => {
   const entries = AGE_BUCKET_ORDER.map((name) => ({ name, count: data[name] || 0 }));
   const hasData = entries.some((e) => e.count > 0);
@@ -116,6 +140,10 @@ const AgeHistogram = ({ data }) => {
   );
 };
 
+/** Bottom margin and XAxis height for bar charts with rotated labels (no overlap). */
+const COUNT_BAR_CHART_MARGIN = { ...CHART_MARGIN, bottom: 72 };
+const COUNT_BAR_X_AXIS_HEIGHT = 72;
+
 const CountBarChart = ({ data, barColor = "var(--primary)", sortOrder }) => {
   const entries = Object.entries(data)
     .filter(([, v]) => Number(v) > 0)
@@ -125,12 +153,12 @@ const CountBarChart = ({ data, barColor = "var(--primary)", sortOrder }) => {
   return (
     <div className="analytics-chart-wrap analytics-bar-wrap">
       <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={entries} margin={CHART_MARGIN} barCategoryGap={`${BAR_CATEGORY_GAP_PCT}%`}>
+        <BarChart data={entries} margin={COUNT_BAR_CHART_MARGIN} barCategoryGap={`${BAR_CATEGORY_GAP_PCT}%`}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--medgrey)" />
           <XAxis
             dataKey="name"
-            tick={<MultiLineTick fontSize={10} />}
-            height={40}
+            tick={(props) => <RotatedTick {...props} fontSize={10} angle={TICK_ROTATION_ANGLE} />}
+            height={COUNT_BAR_X_AXIS_HEIGHT}
             interval={0}
           />
           <YAxis tick={{ fontSize: 12, fill: "var(--tertiary)" }} allowDecimals={false} width={28} />
@@ -154,6 +182,9 @@ const SURGERY_COLORS = [
   "#db2777", /* pink */
 ];
 
+/** Column labels that are not actual symptoms; excluded from the stacked bar chart (case-insensitive). */
+const NON_SYMPTOM_CHART_LABELS = new Set(['symptom', 'symptoms', 'complication', 'complications']);
+
 /**
  * Symptoms chart: stacked bars by surgery type (same surgery_type as surgery frequency graph).
  * data: { symptom: { [surgery_type]: count } } from API; surgeryTypeOrder: same keys as bySurgeryType.
@@ -162,19 +193,24 @@ const SymptomsStackedChart = ({ data, surgeryTypeOrder }) => {
   const raw = data || {};
   const orderFromApi = Array.isArray(surgeryTypeOrder) ? surgeryTypeOrder : [];
 
+  // Exclude meta/non-symptom keys so they never appear as bar labels
+  const filteredRaw = Object.fromEntries(
+    Object.entries(raw).filter(([key]) => !NON_SYMPTOM_CHART_LABELS.has(key.toLowerCase()))
+  );
+
   // Detect nested format: value is object and its values are numbers (surgery_type -> count)
   const isNestedBySurgery = (v) =>
     v && typeof v === "object" && !Array.isArray(v) &&
     Object.values(v).every((n) => typeof n === "number");
 
   const fromData = [...new Set(
-    Object.values(raw).flatMap((bySurgery) => (isNestedBySurgery(bySurgery) ? Object.keys(bySurgery) : []))
+    Object.values(filteredRaw).flatMap((bySurgery) => (isNestedBySurgery(bySurgery) ? Object.keys(bySurgery) : []))
   )];
   const allSurgeryTypes = orderFromApi.length > 0
     ? [...orderFromApi.filter((k) => fromData.includes(k)), ...fromData.filter((k) => !orderFromApi.includes(k)).sort()]
     : fromData.sort();
 
-  const entries = Object.entries(raw)
+  const entries = Object.entries(filteredRaw)
     .map(([name, bySurgery]) => {
       const segments = isNestedBySurgery(bySurgery)
         ? bySurgery
@@ -201,12 +237,12 @@ const SymptomsStackedChart = ({ data, surgeryTypeOrder }) => {
         <p className="analytics-chart-empty">No symptom data from patient calls yet. Data is extracted from follow-up call transcripts and summaries.</p>
       ) : (
         <ResponsiveContainer width="100%" height={440}>
-          <BarChart data={entries} margin={CHART_MARGIN} barCategoryGap={`${BAR_CATEGORY_GAP_PCT}%`}>
+          <BarChart data={entries} margin={{ ...CHART_MARGIN, bottom: 64 }} barCategoryGap={`${BAR_CATEGORY_GAP_PCT}%`}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--medgrey)" />
             <XAxis
               dataKey="name"
-              tick={<MultiLineTick fontSize={10} />}
-              height={40}
+              tick={(props) => <RotatedTick {...props} fontSize={10} angle={TICK_ROTATION_ANGLE} />}
+              height={64}
               interval={0}
             />
             <YAxis tick={{ fontSize: 12, fill: "var(--tertiary)" }} allowDecimals={false} width={28} />

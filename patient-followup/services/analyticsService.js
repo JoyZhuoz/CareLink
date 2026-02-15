@@ -14,14 +14,17 @@ const AGE_BUCKETS = [
   [71, 120, '71+'],
 ];
 
-/** Symptom keywords to extract from call transcripts (case-insensitive). */
+/** Symptom keywords to extract from call transcripts (case-insensitive). Excludes meta terms like "symptom". */
 const SYMPTOM_KEYWORDS = [
   'pain', 'swelling', 'fever', 'nausea', 'vomiting', 'dizziness', 'bleeding',
   'redness', 'drainage', 'shortness of breath', 'chest pain', 'infection',
   'numbness', 'stiffness', 'bruising', 'soreness', 'headache', 'fatigue',
   'constipation', 'diarrhea', 'insomnia', 'sleep', 'cough', 'wound',
-  'complication', 'symptom', 'discomfort', 'tenderness', 'itching',
+  'discomfort', 'tenderness', 'itching',
 ];
+
+/** Labels that are not actual symptoms; excluded from symptom charts (case-insensitive). */
+const NON_SYMPTOM_LABELS = new Set(['symptom', 'symptoms', 'complication', 'complications']);
 
 function countBy(arr, keyFn) {
   const map = {};
@@ -161,6 +164,7 @@ export async function getAnalytics() {
 
       const sym = extractSymptomsFromCall(norm);
       Object.entries(sym).forEach(([symptom, count]) => {
+        if (NON_SYMPTOM_LABELS.has(symptom.toLowerCase())) return;
         if (!symptomCountsBySurgery[symptom]) symptomCountsBySurgery[symptom] = {};
         symptomCountsBySurgery[symptom][surgeryType] = (symptomCountsBySurgery[symptom][surgeryType] || 0) + count;
       });
