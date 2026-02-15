@@ -93,106 +93,96 @@ const PatientCard = ({ patient, onSelect }) => {
 
   return (
     <div
-      className="bg-secondary-50 shadow-lg rounded-corners p-8 transition-all duration-300 cursor-pointer hover:-translate-y-1 hover:shadow-lg flex flex-col h-full min-h-0"
+      className="bg-secondary-50 rounded-2xl shadow-md transition-all duration-300 cursor-pointer hover:shadow-xl hover:-translate-y-0.5 flex flex-col h-full min-h-0 overflow-hidden"
       onClick={() => onSelect && onSelect(patient)}
     >
-      {/* Content above buttons — grows to push action area to bottom */}
-      <div className="flex-1 min-h-0 flex flex-col">
-        {/* Patient Avatar */}
-        <div className="flex justify-center mb-6">
+      <div className="flex-1 min-h-0 flex flex-col p-6">
+        {/* avatar + name, urgency, date */}
+        <div className="flex items-start gap-4 mb-5">
           <img
             src={patient.avatar}
-            alt={patient.name}
-            className="w-32 h-32 rounded-full object-cover shadow-lg"
+            alt=""
+            className="w-14 h-14 rounded-xl object-cover shadow shrink-0"
           />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-lg font-bold truncate" style={{ color: "var(--tertiary)" }}>
+                {patient.name}
+              </h3>
+              <span
+                className={`inline-block w-2.5 h-2.5 rounded-full shrink-0 ${getUrgencyColor(patient.urgency)}`}
+                title={patient.urgency || "Urgency"}
+                aria-hidden
+              />
+            </div>
+            {patient.dischargeDate && (
+              <p className="text-sm mt-0.5 opacity-80" style={{ color: "var(--tertiary)" }}>
+                Discharged {formatDate(patient.dischargeDate)}
+              </p>
+            )}
+            {patient.hasBeenCalled && patient.conditionChange && patient.conditionChange !== "first_call" && (
+              <span
+                className={`inline-block text-xs font-medium mt-1.5 px-2 py-0.5 rounded-md ${
+                  patient.conditionChange === "escalation"
+                    ? "bg-red-100 text-red-700"
+                    : patient.conditionChange === "recovery"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-blue-100 text-blue-700"
+                }`}
+              >
+                {patient.conditionChange === "escalation" ? "↑ Escalation" : patient.conditionChange === "recovery" ? "↓ Recovery" : "→ Stable"}
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Patient Name + urgency dot, then date underneath */}
-        <div className="text-center mb-6">
-          <div className="flex items-center justify-center gap-2">
-            <h3 className="text-xl font-bold text-gray-900">{patient.name}</h3>
-            <span
-              className={`inline-block w-3 h-3 rounded-full shrink-0 ${getUrgencyColor(patient.urgency)}`}
-              title={patient.urgency || "Urgency"}
-              aria-hidden
-            />
-          </div>
-          {patient.dischargeDate && (
-            <p className="text-gray-700 text-lg font-semibold mt-1">Discharged {formatDate(patient.dischargeDate)}</p>
-          )}
-        </div>
-
-        {/* Two-column: Operation and Recent Symptoms */}
-        <div className="grid grid-cols-2 gap-6 mb-6">
+        {/* operations and systems */}
+        <div className="space-y-3 mb-4">
           <div>
-            <h4 className="font-bold text-gray-900 text-xl mb-1">Operation</h4>
-            <p className="text-gray-800 text-xl">{patient.operation}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider opacity-60 mb-0.5" style={{ color: "var(--tertiary)" }}>
+              Operation
+            </p>
+            <p className="text-sm font-medium" style={{ color: "var(--tertiary)" }}>
+              {patient.operation}
+            </p>
           </div>
           <div>
-            <h4 className="font-bold text-gray-900 text-xl mb-1">Recent Symptoms</h4>
-            <p className="text-gray-800 text-xl">
+            <p className="text-xs font-semibold uppercase tracking-wider opacity-60 mb-0.5" style={{ color: "var(--tertiary)" }}>
+              Recent symptoms
+            </p>
+            <p className="text-sm" style={{ color: "var(--tertiary)" }}>
               {Array.isArray(patient.symptoms) ? patient.symptoms.join(", ") : patient.symptoms}
             </p>
           </div>
         </div>
 
-        {/* AI Summary (only after a call) */}
         {patient.aiSummary && (
-          <div className="mb-8">
-            <h4 className="font-bold text-gray-900 text-xl mb-1.5">AI Summary</h4>
-            <p className="text-gray-800 text-xl leading-relaxed">{patient.aiSummary}</p>
+          <div className="mt-auto pt-4 border-t border-[color:color-mix(in_srgb,var(--tertiary)_15%,transparent)]">
+            <p className="text-xs font-semibold uppercase tracking-wider opacity-60 mb-1" style={{ color: "var(--tertiary)" }}>
+              AI summary
+            </p>
+            <p className="text-sm leading-snug line-clamp-3 opacity-90" style={{ color: "var(--tertiary)" }}>
+              {patient.aiSummary}
+            </p>
           </div>
         )}
-
-      {/* Condition trend (escalation/recovery/stable) after multiple calls */}
-      {patient.hasBeenCalled && patient.conditionChange && patient.conditionChange !== "first_call" && (
-        <div className="flex justify-center mb-4">
-          <span
-            className={`text-xs font-semibold px-3 py-1 rounded-full ${
-              patient.conditionChange === "escalation"
-                ? "bg-red-100 text-red-700"
-                : patient.conditionChange === "recovery"
-                  ? "bg-green-100 text-green-700"
-                  : "bg-blue-100 text-blue-700"
-            }`}
-          >
-            {patient.conditionChange === "escalation"
-              ? "↑ Escalation"
-              : patient.conditionChange === "recovery"
-                ? "↓ Recovery"
-                : "→ Stable"}
-          </span>
-        </div>
-      )}
       </div>
 
-      {/* Action area: "Call complete!" tag OR countdown — aligned to bottom */}
-      <div className="flex gap-4 justify-center items-center flex-wrap">
+      {/* status + buttons */}
+      <div className="flex gap-2 justify-center items-center flex-wrap p-4 pt-3 bg-[color:color-mix(in_srgb,var(--tertiary)_06%,transparent)]">
         {patient.hasBeenCalled ? (
-          <span className="inline-flex items-center gap-1.5 font-semibold py-2 px-4 rounded-lg bg-green-200 text-green-800">
-            <span className="w-2 h-2 rounded-full bg-green-500" aria-hidden />
-            Call complete!
+          <span className="inline-flex items-center gap-1.5 text-sm font-semibold py-2 px-3 rounded-lg bg-green-100 text-green-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500" aria-hidden />
+            Call complete
           </span>
         ) : (
-          /* ── Not yet called → show countdown to scheduled call ── */
           <div
-            className={`flex items-center gap-2 font-bold py-3 px-6 rounded-xl text-white ${
-              isPastDue ? "bg-indigo-500/85" : "bg-blue-500/85"
+            className={`flex items-center gap-1.5 text-sm font-semibold py-2 px-4 rounded-lg text-white ${
+              isPastDue ? "bg-indigo-500" : "bg-blue-500"
             }`}
           >
-            {/* Clock icon */}
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z"
-              />
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
             </svg>
             <span>{countdown === "Scheduled" || countdown === "Overdue" ? "Scheduled" : `Call in ${countdown}`}</span>
           </div>
@@ -201,56 +191,30 @@ const PatientCard = ({ patient, onSelect }) => {
         <button
           type="button"
           onClick={handleOpenEmail}
-          className="flex items-center gap-2 text-white font-bold py-3 px-6 rounded-xl bg-neutral-600 hover:bg-gray-700 transition-all duration-200"
+          className="flex items-center justify-center w-10 h-10 rounded-lg text-white transition-all duration-200 hover:opacity-90"
+          style={{ backgroundColor: "var(--tertiary)" }}
           aria-label="Send email"
         >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-            />
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
           </svg>
         </button>
         <button
           type="button"
           onClick={handleCallNow}
           disabled={calling}
-          className={`flex items-center gap-2 text-white font-bold py-3 px-6 rounded-xl transition-all duration-200 ${
+          className={`flex items-center justify-center gap-1.5 min-w-[2.5rem] h-10 px-3 rounded-lg text-white text-sm font-semibold transition-all duration-200 ${
             callStatus === "success"
               ? "bg-green-600"
               : callStatus === "error"
                 ? "bg-red-500"
-                : "bg-tertiary hover:bg-[#453840]"
+                : "bg-tertiary hover:opacity-90"
           } ${calling ? "opacity-60 cursor-wait" : ""}`}
         >
-          {/* Phone icon */}
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-            />
+          <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
           </svg>
-          {calling
-            ? "Calling..."
-            : callStatus === "success"
-              ? "Call Started"
-              : callStatus === "error"
-                ? "Failed"
-                : ""}
+          {calling ? "Calling..." : callStatus === "success" ? "Call Started" : callStatus === "error" ? "Failed" : ""}
         </button>
       </div>
 
