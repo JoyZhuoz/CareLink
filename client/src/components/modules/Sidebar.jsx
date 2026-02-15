@@ -46,8 +46,10 @@ const Sidebar = ({ activePage }) => {
       style={{ width: "100%" }}
     >
       <h1
-        className="text-3xl font-bold mb-10 px-2"
+        className="text-3xl font-bold mb-10 px-2 cursor-pointer"
         style={{ color: "var(--primary)" }}
+        onClick={() => navigate(NAV_ROUTES.dashboard)}
+
       >
         CareLink
       </h1>

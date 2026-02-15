@@ -113,7 +113,7 @@ const PatientCard = ({ patient, onSelect }) => {
             />
           </div>
           {patient.dischargeDate && (
-            <p className="text-gray-700 font-medium mt-1">{patient.dischargeDate}</p>
+            <p className="text-gray-700 font-medium mt-1">Discharged {patient.dischargeDate}</p>
           )}
         </div>
 
@@ -143,7 +143,7 @@ const PatientCard = ({ patient, onSelect }) => {
       {/* Action area: "Call complete!" tag OR countdown — aligned to bottom */}
       <div className="flex gap-4 justify-center items-center flex-wrap">
         {patient.hasBeenCalled ? (
-          <span className="inline-flex items-center gap-1.5 font-semibold py-2 px-4 rounded-lg bg-green-100 text-green-800 border border-green-300">
+          <span className="inline-flex items-center gap-1.5 font-semibold py-2 px-4 rounded-lg bg-green-200 text-green-800">
             <span className="w-2 h-2 rounded-full bg-green-500" aria-hidden />
             Call complete!
           </span>
@@ -151,7 +151,7 @@ const PatientCard = ({ patient, onSelect }) => {
           /* ── Not yet called → show countdown to scheduled call ── */
           <div
             className={`flex items-center gap-2 font-bold py-3 px-6 rounded-xl text-white ${
-              isPastDue ? "bg-indigo-500" : "bg-blue-500"
+              isPastDue ? "bg-indigo-500/85" : "bg-blue-500/85"
             }`}
           >
             {/* Clock icon */}
@@ -171,11 +171,11 @@ const PatientCard = ({ patient, onSelect }) => {
             <span>{countdown === "Scheduled" || countdown === "Overdue" ? "Scheduled" : `Call in ${countdown}`}</span>
           </div>
         )}
-        
+
         <button
           type="button"
           onClick={handleOpenEmail}
-          className="flex items-center gap-2 text-white font-bold py-3 px-6 rounded-xl bg-gray-600 hover:bg-gray-700 transition-all duration-200"
+          className="flex items-center gap-2 text-white font-bold py-3 px-6 rounded-xl bg-neutral-600 hover:bg-gray-700 transition-all duration-200"
           aria-label="Send email"
         >
           <svg
@@ -201,7 +201,7 @@ const PatientCard = ({ patient, onSelect }) => {
               ? "bg-green-600"
               : callStatus === "error"
                 ? "bg-red-500"
-                : "bg-[#55454F] hover:bg-[#453840]"
+                : "bg-tertiary hover:bg-[#453840]"
           } ${calling ? "opacity-60 cursor-wait" : ""}`}
         >
           {/* Phone icon */}

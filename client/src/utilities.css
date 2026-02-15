@@ -61,6 +61,16 @@ form {
   background-color: var(--tertiary);
 }
 
+.button-tertiary {
+  background-color: var(--tertiary);
+  transition: background-color 0.3s ease;
+}
+
+.button-tertiary:hover {
+  background-color: #2f1e20;
+  transition: background-color 0.3s ease;
+}
+
 .bg-secondary-50 {
   background-color: color-mix(in srgb, var(--secondary) 50%, transparent);
 }

@@ -170,15 +170,14 @@ const PatientProfile = ({ patient, onBack, onViewSummary, onContact }) => {
           <button
             type="button"
             onClick={() => onViewSummary && onViewSummary()}
-            className="text-white font-bold py-3 px-10 rounded-xl transition-all duration-200 hover:opacity-90"
-            style={{ backgroundColor: "var(--primary)" }}
+            className="text-white font-bold py-3 px-10 bg-gray-600 hover:bg-gray-700 transition-all duration-200 rounded-xl"
           >
             See call history
           </button>
           <button
             onClick={handleContact}
             disabled={callStatus === "loading"}
-            className="bg-tertiary text-white font-bold py-3 px-10 rounded-xl transition-all duration-200 disabled:opacity-60"
+            className="button-tertiary text-white font-bold py-3 px-10 rounded-xl transition-all duration-200 disabled:opacity-60"
           >
             {callStatus === "loading" ? "Calling..." : "Contact"}
           </button>
