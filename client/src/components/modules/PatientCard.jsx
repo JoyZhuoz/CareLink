@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 function formatCountdown(isoDate) {
   const diff = new Date(isoDate).getTime() - Date.now();
@@ -16,6 +17,9 @@ const PatientCard = ({ patient, onSelect }) => {
   const [calling, setCalling] = useState(false);
   const [callStatus, setCallStatus] = useState(null); // "success" | "error" | null
   const [liveCountdown, setLiveCountdown] = useState("");
+  const [showEmailPopup, setShowEmailPopup] = useState(false);
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
 
   const nextCallDate = patient.nextCallDate || patient.next_call_date;
   useEffect(() => {
@@ -30,6 +34,24 @@ const PatientCard = ({ patient, onSelect }) => {
   }, [nextCallDate]);
 
   const countdown = liveCountdown || (nextCallDate ? formatCountdown(nextCallDate) : "Scheduled");
+
+  const handleOpenEmail = (e) => {
+    e.stopPropagation();
+    setEmailSubject("");
+    setEmailBody("");
+    setShowEmailPopup(true);
+  };
+
+  const handleCloseEmailPopup = (e) => {
+    if (e) e.stopPropagation();
+    setShowEmailPopup(false);
+  };
+
+  const handleSendEmail = (e) => {
+    e.stopPropagation();
+    // Just close popup for now; no actual email sending
+    setShowEmailPopup(false);
+  };
 
   const handleCallNow = async (e) => {
     e.stopPropagation();
@@ -147,6 +169,27 @@ const PatientCard = ({ patient, onSelect }) => {
           </div>
         )}
         <button
+          type="button"
+          onClick={handleOpenEmail}
+          className="flex items-center gap-2 text-white font-bold py-3 px-6 rounded-xl bg-gray-600 hover:bg-gray-700 transition-all duration-200"
+          aria-label="Send email"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+            />
+          </svg>
+        </button>
+        <button
+          type="button"
           onClick={handleCallNow}
           disabled={calling}
           className={`flex items-center gap-2 text-white font-bold py-3 px-6 rounded-xl transition-all duration-200 ${
@@ -177,9 +220,75 @@ const PatientCard = ({ patient, onSelect }) => {
               ? "Call Started"
               : callStatus === "error"
                 ? "Failed"
-                : "Call Now"}
+                : ""}
         </button>
       </div>
+
+      {/* Email popup — portaled to body so it covers the whole dashboard */}
+      {showEmailPopup &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4"
+            onClick={handleCloseEmailPopup}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="email-popup-title"
+          >
+            <div
+              className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 flex flex-col gap-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 id="email-popup-title" className="text-xl font-bold text-gray-900">
+                Email {patient.name}
+              </h2>
+              <div>
+                <label htmlFor="email-subject" className="block text-sm font-medium text-gray-700 mb-1">
+                  Subject
+                </label>
+                <input
+                  id="email-subject"
+                  type="text"
+                  value={emailSubject}
+                  onChange={(e) => setEmailSubject(e.target.value)}
+                  placeholder="Email subject"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+              <div>
+                <label htmlFor="email-body" className="block text-sm font-medium text-gray-700 mb-1">
+                  Body
+                </label>
+                <textarea
+                  id="email-body"
+                  value={emailBody}
+                  onChange={(e) => setEmailBody(e.target.value)}
+                  placeholder="Email body"
+                  rows={5}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-y"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+              <div className="flex gap-3 justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={handleCloseEmailPopup}
+                  className="px-4 py-2 text-gray-700 font-medium rounded-lg border border-gray-300 hover:bg-gray-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendEmail}
+                  className="px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700"
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };
