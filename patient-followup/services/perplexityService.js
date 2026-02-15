@@ -26,7 +26,15 @@ Keep it concise and medically accurate.`;
         { role: 'system', content: 'You are a medical information assistant.' },
         { role: 'user', content: prompt }
       ],
-      max_tokens: 500
+      max_tokens: 500,
+      search_domain_filter: [
+        "ncbi.nlm.nih.gov",
+        "pubmed.ncbi.nlm.nih.gov",
+        "fda.gov",
+        "cdc.gov",
+        "mayoclinic.org",
+        "clevelandclinic.org"
+      ]
     },
     {
       headers: {
