@@ -1,8 +1,11 @@
+
 <p align="center">
   <img src="CareLink_Banner.png" alt="CareLink — Connecting Patients, Empowering Care" width="100%" />
 </p>
 
 ***
+
+<h2>CareLink: TreeHacks 2026 Winner of Elastic's Sponsor Challenge: Best End-to-End Agentic System on Elasticsearch (1st Place)</h2>
 
 ### Inspiration
 1 in 5 Medicare recipients are readmitted within just a month of discharge from the hospital due to post-surgery complications - complications which would have been highly avoidable had proactive and sufficient follow-up been conducted on discharged patients. Readmissions cost the U.S. hospital system 26 billion dollars a year, exerting stress upon understaffed and busy hospital systems without the bandwidth to ensure patients get consistent care after walking through the doors of the operating room.
